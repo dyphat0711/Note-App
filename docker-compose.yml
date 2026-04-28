@@ -1,0 +1,70 @@
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: noteflow-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE:-noteflow}
+      MYSQL_USER: ${DB_USERNAME:-noteflow}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - noteflow-network
+
+  # PHP-FPM (Laravel Backend)
+  php-fpm:
+    build:
+      context: ./backend
+      dockerfile: ../docker/php-fpm/Dockerfile
+    container_name: noteflow-php
+    restart: unless-stopped
+    environment:
+      - APP_ENV=${APP_ENV:-local}
+      - APP_DEBUG=${APP_DEBUG:-true}
+      - DB_HOST=mysql
+      - DB_DATABASE=${DB_DATABASE:-noteflow}
+      - DB_USERNAME=${DB_USERNAME:-noteflow}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+    volumes:
+      - ./backend:/var/www/html
+      - ./docker/php-fpm/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - noteflow-network
+
+  # Nginx (Reverse Proxy for Backend + Static Frontend)
+  nginx:
+    image: nginx:alpine
+    container_name: noteflow-nginx
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-80}:80"
+    volumes:
+      - ./backend/public:/var/www/html/public
+      - ./frontend/dist:/var/www/html/frontend
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - php-fpm
+    networks:
+      - noteflow-network
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  noteflow-network:
+    driver: bridge

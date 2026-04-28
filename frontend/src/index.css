@@ -1,0 +1,161 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: "Source Sans 3", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "Fraunces", Georgia, serif;
+  }
+
+  body {
+    @apply bg-dark-500 text-surface-200;
+    background-image:
+      radial-gradient(1200px 600px at 15% 10%, rgba(59, 130, 246, 0.10), transparent 60%),
+      radial-gradient(900px 500px at 85% 15%, rgba(236, 72, 153, 0.08), transparent 55%),
+      radial-gradient(900px 600px at 55% 90%, rgba(245, 158, 11, 0.10), transparent 60%);
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e1 transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background-color: #cbd5e1;
+    border-radius: 9999px;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-accent-500 hover:bg-accent-600 text-white font-medium rounded-lg shadow-dark transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 focus:ring-offset-dark-500 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-dark-200 hover:bg-dark-100 text-surface-200 font-medium rounded-lg shadow-dark transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 focus:ring-offset-dark-500;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 bg-danger-500 hover:bg-danger-600 text-white font-medium rounded-lg shadow-dark transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-danger-500 focus:ring-offset-2 focus:ring-offset-dark-500;
+  }
+
+  .input-dark {
+    @apply w-full px-3 py-2 rounded-lg border border-dark-100 bg-dark-200 text-surface-200 placeholder-dark-50 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent transition-all duration-200;
+  }
+
+  .card-dark {
+    @apply bg-dark-200 rounded-lg border border-dark-100 shadow-dark;
+  }
+}
+
+/* TipTap editor styles */
+.tiptap-editor .ProseMirror {
+  min-height: 300px;
+  outline: none;
+  color: var(--tw-text-surface-200, #1f2937);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+.tiptap-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #94a3b8;
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap-editor .ProseMirror h1 { font-size: 1.875rem; font-weight: 700; margin: 1em 0 0.5em; }
+.tiptap-editor .ProseMirror h2 { font-size: 1.5rem; font-weight: 600; margin: 0.75em 0 0.5em; }
+.tiptap-editor .ProseMirror h3 { font-size: 1.25rem; font-weight: 600; margin: 0.75em 0 0.5em; }
+
+.tiptap-editor .ProseMirror ul { list-style: disc; padding-left: 1.5em; margin: 0.5em 0; }
+.tiptap-editor .ProseMirror ol { list-style: decimal; padding-left: 1.5em; margin: 0.5em 0; }
+.tiptap-editor .ProseMirror li { margin: 0.25em 0; }
+
+.tiptap-editor .ProseMirror blockquote {
+  border-left: 3px solid #3b82f6;
+  padding-left: 1em;
+  margin: 0.5em 0;
+  color: #64748b;
+}
+
+.tiptap-editor .ProseMirror code {
+  background: #e2e8f0;
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.875em;
+  font-family: monospace;
+}
+
+.tiptap-editor .ProseMirror pre {
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 1em;
+  border-radius: 8px;
+  margin: 0.5em 0;
+  overflow-x: auto;
+}
+
+.tiptap-editor .ProseMirror pre code {
+  background: none;
+  padding: 0;
+  color: inherit;
+}
+
+.tiptap-editor .ProseMirror a {
+  color: #3b82f6;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tiptap-editor .ProseMirror img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 0.5em 0;
+}
+
+.tiptap-editor .ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.5em 0;
+}
+
+.tiptap-editor .ProseMirror th,
+.tiptap-editor .ProseMirror td {
+  border: 1px solid #cbd5e1;
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+
+.tiptap-editor .ProseMirror th {
+  background: #f1f5f9;
+  font-weight: 600;
+}
+
+.tiptap-editor .ProseMirror hr {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 1em 0;
+}
