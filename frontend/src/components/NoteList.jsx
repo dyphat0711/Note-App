@@ -306,10 +306,10 @@ const NoteCard = React.memo(
         className={`group relative rounded-xl cursor-pointer transition-all duration-150 border shadow-dark ${
           isGrid
             ? `${paletteClass} p-4 hover:shadow-dark-lg flex flex-col min-h-[140px]`
-            : `p-3 ${
+            : `${paletteClass} p-3 ${
                 isActive
-                  ? "bg-accent-50 border-accent-200"
-                  : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-dark"
+                  ? "ring-2 ring-accent-400 shadow-dark-lg"
+                  : "hover:shadow-dark-lg"
               }`
         }`}
         role="listitem"

@@ -31,7 +31,8 @@ function transformAttachment(a) {
     id: a.id,
     noteId: a.note_id,
     name: a.original_name,
-    url: a.url,
+    url: a.url || a.download_url,
+    downloadUrl: a.download_url,
     mime: a.mime_type,
     size: a.size,
   };

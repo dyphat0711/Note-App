@@ -81,6 +81,7 @@ const Sidebar = React.memo(({ onClose }) => {
     updateLabel,
     deleteLabel,
     setActiveNote,
+    refreshSharedWithMe,
   } = useNoteStore();
   const user = useAuthStore((s) => s.user);
 
@@ -195,7 +196,10 @@ const Sidebar = React.memo(({ onClose }) => {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => {
+                  setActiveSection(item.id);
+                  if (item.id === "shared") refreshSharedWithMe();
+                }}
                 className={`w-full ${navItemClass(item.id, isActive)}`}
               >
                 <Icon size={16} />
