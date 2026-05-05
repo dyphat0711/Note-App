@@ -6,7 +6,6 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Illuminate\Support\Facades\Storage;
 
 class AttachmentResource extends JsonResource
 {
@@ -24,7 +23,7 @@ class AttachmentResource extends JsonResource
             'mime_type' => $this->mime_type,
             'size' => $this->size,
             'size_formatted' => $this->formatBytes($this->size),
-            'url' => Storage::disk('public')->url($this->stored_path),
+            'url' => '/storage/' . $this->stored_path,
             'download_url' => route('attachments.download', $this->id),
             'is_image' => str_starts_with($this->mime_type, 'image/'),
             'created_at' => $this->created_at->toISOString(),

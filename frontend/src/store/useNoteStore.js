@@ -205,10 +205,10 @@ const useNoteStore = create((set, get) => ({
       notes: s.notes.map((n) =>
         n.id === id
           ? {
-              ...n,
-              isPinned: !n.isPinned,
-              pinnedAt: !n.isPinned ? new Date().toISOString() : null,
-            }
+            ...n,
+            isPinned: !n.isPinned,
+            pinnedAt: !n.isPinned ? new Date().toISOString() : null,
+          }
           : n,
       ),
     }));
@@ -306,10 +306,10 @@ const useNoteStore = create((set, get) => ({
       notes: s.notes.map((n) =>
         n.id === noteId
           ? {
-              ...n,
-              isShared: true,
-              shares: [...(n.shares || []).filter((x) => x.email !== email), share],
-            }
+            ...n,
+            isShared: true,
+            shares: [...(n.shares || []).filter((x) => x.email !== email), share],
+          }
           : n,
       ),
     }));
@@ -334,10 +334,10 @@ const useNoteStore = create((set, get) => ({
       notes: s.notes.map((n) =>
         n.id === noteId
           ? {
-              ...n,
-              shares: n.shares.filter((x) => x.id !== shareId),
-              isShared: n.shares.filter((x) => x.id !== shareId).length > 0,
-            }
+            ...n,
+            shares: n.shares.filter((x) => x.id !== shareId),
+            isShared: n.shares.filter((x) => x.id !== shareId).length > 0,
+          }
           : n,
       ),
     }));
@@ -378,9 +378,9 @@ const useNoteStore = create((set, get) => ({
       notes: s.notes.map((n) =>
         n.id === noteId
           ? {
-              ...n,
-              attachments: (n.attachments || []).filter((a) => a.id !== attachmentId),
-            }
+            ...n,
+            attachments: (n.attachments || []).filter((a) => a.id !== attachmentId),
+          }
           : n,
       ),
     }));

@@ -37,9 +37,8 @@ const ColorPicker = ({ value, onChange }) => {
               setCustom(c);
               onChange(c);
             }}
-            className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${
-              value === c ? "border-white scale-110" : "border-transparent"
-            }`}
+            className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${value === c ? "border-white scale-110" : "border-transparent"
+              }`}
             style={{ backgroundColor: c }}
           />
         ))}
@@ -150,10 +149,9 @@ const Sidebar = React.memo(({ onClose }) => {
   };
 
   const navItemClass = (id, isActive) =>
-    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-150 cursor-pointer ${
-      isActive
-        ? "bg-accent-500/20 text-accent-400"
-        : "text-dark-50 hover:bg-dark-200 hover:text-surface-200"
+    `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors duration-150 cursor-pointer ${isActive
+      ? "bg-accent-500/20 text-accent-400"
+      : "text-dark-50 hover:bg-dark-200 hover:text-surface-200"
     }`;
 
   const isLabelSelected = (id) => selectedLabelIds.includes(id);
@@ -384,11 +382,10 @@ const Sidebar = React.memo(({ onClose }) => {
                 ) : (
                   <button
                     onClick={() => toggleLabelFilter(label.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 cursor-pointer ${
-                      isLabelSelected(label.id)
+                    className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-sm transition-colors duration-150 cursor-pointer ${isLabelSelected(label.id)
                         ? "bg-accent-500/20 text-accent-400"
                         : "text-dark-50 hover:bg-dark-200 hover:text-surface-200"
-                    }`}
+                      }`}
                   >
                     <span
                       className="w-2.5 h-2.5 rounded-full flex-shrink-0"
