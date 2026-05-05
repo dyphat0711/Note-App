@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
   Search,
   Grid3X3,
@@ -7,96 +7,132 @@ import {
   Lock,
   Trash2,
   FileText,
+  Users,
 } from "lucide-react";
 import { useDebounce } from "../hooks/useDebounce";
 import useNoteStore from "../store/useNoteStore";
+import { noteAPI } from "../api/services";
+
+function transformNoteFromApi(n) {
+  return {
+    id: n.id,
+    userId: n.user_id,
+    title: n.title,
+    content: n.content,
+    isPinned: Boolean(n.is_pinned),
+    pinnedAt: n.pinned_at,
+    hasPassword: Boolean(n.has_password),
+    isShared: Boolean(n.is_shared),
+    isOwner: n.is_owner ?? true,
+    sharePermission: n.share_permission ?? null,
+    owner: n.owner || null,
+    labels: (n.labels || []).map((l) => ({
+      id: l.id,
+      name: l.name,
+      color: l.color || "#3b82f6",
+    })),
+    shares: n.shares || [],
+    attachments: n.attachments || [],
+    createdAt: n.created_at,
+    updatedAt: n.updated_at,
+  };
+}
 
 const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
   const viewMode = useNoteStore((s) => s.viewMode);
   const searchQuery = useNoteStore((s) => s.searchQuery);
-  const selectedLabel = useNoteStore((s) => s.selectedLabel);
-  const selectedFolder = useNoteStore((s) => s.selectedFolder);
+  const selectedLabelIds = useNoteStore((s) => s.selectedLabelIds);
   const activeSection = useNoteStore((s) => s.activeSection);
   const labels = useNoteStore((s) => s.labels);
-  const folders = useNoteStore((s) => s.folders);
   const notes = useNoteStore((s) => s.notes);
+  const sharedNotes = useNoteStore((s) => s.sharedNotes);
   const activeNoteId = useNoteStore((s) => s.activeNoteId);
   const setViewMode = useNoteStore((s) => s.setViewMode);
   const setSearchQuery = useNoteStore((s) => s.setSearchQuery);
   const togglePin = useNoteStore((s) => s.togglePin);
 
   const [localSearch, setLocalSearch] = useState(searchQuery);
-  const debouncedSearch = useDebounce(localSearch, 300);
+  const debouncedSearch = useDebounce(localSearch, 300); // spec: 300ms live search
+  const [serverSearchResults, setServerSearchResults] = useState(null);
+  const [searching, setSearching] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setSearchQuery(debouncedSearch);
   }, [debouncedSearch, setSearchQuery]);
 
-  const filteredNotes = React.useMemo(() => {
-    let filtered = [...notes];
+  // Server-side search when query is non-empty (spec #17: search title + content).
+  useEffect(() => {
+    let cancelled = false;
+    if (!debouncedSearch.trim()) {
+      setServerSearchResults(null);
+      return () => {
+        cancelled = true;
+      };
+    }
+    setSearching(true);
+    noteAPI
+      .search(debouncedSearch)
+      .then(({ data }) => {
+        if (!cancelled) {
+          setServerSearchResults((data.data || []).map(transformNoteFromApi));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setServerSearchResults([]);
+      })
+      .finally(() => {
+        if (!cancelled) setSearching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [debouncedSearch]);
+
+  const sourceNotes = useMemo(() => {
+    if (activeSection === "shared") return sharedNotes;
+    if (debouncedSearch.trim() && serverSearchResults) return serverSearchResults;
+    return notes;
+  }, [activeSection, sharedNotes, debouncedSearch, serverSearchResults, notes]);
+
+  const filteredNotes = useMemo(() => {
+    let filtered = [...sourceNotes];
 
     if (activeSection === "favorites") {
       filtered = filtered.filter((n) => n.isPinned);
-    } else if (activeSection === "trash" || activeSection === "archived") {
-      filtered = [];
     }
 
-    if (selectedFolder) {
-      filtered = filtered.filter((n) => n.folderId === selectedFolder);
-    }
-
-    if (selectedLabel) {
+    if (selectedLabelIds.length > 0) {
       filtered = filtered.filter((n) =>
-        (n.labels || []).some((l) => l.id === selectedLabel),
-      );
-    }
-
-    if (debouncedSearch.trim()) {
-      const q = debouncedSearch.toLowerCase();
-      filtered = filtered.filter(
-        (n) =>
-          n.title?.toLowerCase().includes(q) ||
-          (n.content && !n.hasPassword && n.content.toLowerCase().includes(q)),
+        (n.labels || []).some((l) => selectedLabelIds.includes(l.id)),
       );
     }
 
     filtered.sort((a, b) => {
+      // Spec #16: pinned first; among pinned by pinnedAt desc; else by updatedAt desc.
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      if (a.isPinned && b.isPinned && a.pinnedAt && b.pinnedAt)
-        return new Date(b.pinnedAt) - new Date(a.pinnedAt);
-      return new Date(b.updatedAt) - new Date(a.updatedAt);
+      if (a.isPinned && b.isPinned) {
+        const ap = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+        const bp = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+        if (ap !== bp) return bp - ap;
+      }
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
     });
 
     return filtered;
-  }, [notes, activeSection, selectedFolder, selectedLabel, debouncedSearch]);
+  }, [sourceNotes, activeSection, selectedLabelIds]);
 
-  const cardPalette = React.useMemo(
-    () => [
-      "bg-sky-50 border-sky-100",
-      "bg-rose-50 border-rose-100",
-      "bg-amber-50 border-amber-100",
-      "bg-indigo-50 border-indigo-100",
-      "bg-emerald-50 border-emerald-100",
-      "bg-violet-50 border-violet-100",
-    ],
-    [],
-  );
-
-  const sectionTitle = React.useMemo(() => {
-    if (activeSection === "recents") {
-      if (selectedFolder) {
-        const folder = folders.find((f) => f.id === selectedFolder);
-        return folder?.name || "Notes";
-      }
-      if (selectedLabel) {
-        const label = labels.find((l) => l.id === selectedLabel);
-        return label?.name || "Notes";
-      }
-      return "All Notes";
+  const sectionTitle = useMemo(() => {
+    if (activeSection === "favorites") return "Pinned";
+    if (activeSection === "shared") return "Shared with me";
+    if (selectedLabelIds.length > 0) {
+      const names = labels
+        .filter((l) => selectedLabelIds.includes(l.id))
+        .map((l) => l.name);
+      return names.length === 1 ? names[0] : `${names.length} labels`;
     }
-    return activeSection.charAt(0).toUpperCase() + activeSection.slice(1);
-  }, [activeSection, selectedFolder, selectedLabel, folders, labels]);
+    return "All Notes";
+  }, [activeSection, selectedLabelIds, labels]);
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
@@ -109,7 +145,7 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
 
   const getExcerpt = (content, maxLength = 80) => {
     if (!content) return "";
-    const clean = content
+    const clean = String(content)
       .replace(/<[^>]*>/g, " ")
       .replace(/[#*`_~>\-\n]/g, " ")
       .replace(/\s+/g, " ")
@@ -145,9 +181,17 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
     >
       {/* Header */}
       <div className="px-4 py-4 border-b border-dark-300">
-        <h2 className="text-lg font-semibold text-surface-100 mb-3">
-          {sectionTitle}
-        </h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-surface-100 truncate">
+            {sectionTitle}
+          </h2>
+          {activeSection === "shared" && (
+            <span className="flex items-center gap-1 text-xs text-dark-50">
+              <Users size={12} />
+              {sharedNotes.length}
+            </span>
+          )}
+        </div>
 
         <div className="relative mb-3">
           <Search
@@ -155,28 +199,19 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
             className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-50 pointer-events-none"
           />
           <input
-            type="text"
+            type="search"
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             placeholder="Search notes..."
             className="w-full pl-9 pr-3 py-2 bg-dark-200 border border-dark-100 rounded-lg text-sm text-surface-200 placeholder-dark-50 focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-transparent transition-all duration-150"
             aria-label="Search notes"
           />
+          {searching && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 animate-spin w-3 h-3 border-2 border-accent-500 border-t-transparent rounded-full" />
+          )}
         </div>
 
         <div className="flex items-center gap-1 bg-dark-200 rounded-lg p-0.5">
-          <button
-            onClick={() => setViewMode("list")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
-              viewMode === "list"
-                ? "bg-dark-100 text-surface-100"
-                : "text-dark-50 hover:text-surface-200"
-            }`}
-            aria-label="List view"
-          >
-            <List size={14} />
-            List
-          </button>
           <button
             onClick={() => setViewMode("grid")}
             className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
@@ -185,9 +220,23 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
                 : "text-dark-50 hover:text-surface-200"
             }`}
             aria-label="Grid view"
+            aria-pressed={viewMode === "grid"}
           >
             <Grid3X3 size={14} />
             Grid
+          </button>
+          <button
+            onClick={() => setViewMode("list")}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
+              viewMode === "list"
+                ? "bg-dark-100 text-surface-100"
+                : "text-dark-50 hover:text-surface-200"
+            }`}
+            aria-label="List view"
+            aria-pressed={viewMode === "list"}
+          >
+            <List size={14} />
+            List
           </button>
         </div>
       </div>
@@ -197,6 +246,7 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
         className={`flex-1 overflow-y-auto p-3 ${
           isGrid ? "grid grid-cols-2 gap-3 auto-rows-min" : "space-y-2"
         }`}
+        role="list"
       >
         {filteredNotes.length === 0 ? (
           <div
@@ -208,7 +258,7 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
             <p className="text-sm">No notes found</p>
           </div>
         ) : (
-          filteredNotes.map((note) => (
+          filteredNotes.map((note, idx) => (
             <NoteCard
               key={note.id}
               note={note}
@@ -219,9 +269,7 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
               onDelete={handleDeleteClick}
               formatDate={formatDate}
               getExcerpt={getExcerpt}
-              paletteClass={
-                cardPalette[Math.abs(Number(note.id) || 0) % cardPalette.length]
-              }
+              paletteIndex={idx % CARD_PALETTE.length}
             />
           ))
         )}
@@ -229,6 +277,15 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
     </div>
   );
 });
+
+const CARD_PALETTE = [
+  "bg-sky-50 border-sky-100",
+  "bg-rose-50 border-rose-100",
+  "bg-amber-50 border-amber-100",
+  "bg-indigo-50 border-indigo-100",
+  "bg-emerald-50 border-emerald-100",
+  "bg-violet-50 border-violet-100",
+];
 
 const NoteCard = React.memo(
   ({
@@ -240,8 +297,9 @@ const NoteCard = React.memo(
     onDelete,
     formatDate,
     getExcerpt,
-    paletteClass,
+    paletteIndex,
   }) => {
+    const paletteClass = CARD_PALETTE[paletteIndex];
     return (
       <div
         onClick={() => onOpen(note.id)}
@@ -254,7 +312,7 @@ const NoteCard = React.memo(
                   : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-dark"
               }`
         }`}
-        role="button"
+        role="listitem"
         tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && onOpen(note.id)}
       >
@@ -269,9 +327,26 @@ const NoteCard = React.memo(
                 {note.title || "Untitled"}
               </h3>
               <div className="flex items-center gap-1 flex-shrink-0">
-                {note.isPinned && <Pin size={12} className="text-accent-400" />}
+                {note.isPinned && (
+                  <Pin
+                    size={12}
+                    className="text-accent-500"
+                    aria-label="Pinned"
+                  />
+                )}
                 {note.hasPassword && (
-                  <Lock size={12} className="text-amber-500" />
+                  <Lock
+                    size={12}
+                    className="text-amber-500"
+                    aria-label="Password protected"
+                  />
+                )}
+                {note.isShared && (
+                  <Users
+                    size={12}
+                    className="text-blue-500"
+                    aria-label="Shared"
+                  />
                 )}
               </div>
             </div>
@@ -280,11 +355,23 @@ const NoteCard = React.memo(
               <span className="text-xs text-slate-500">
                 {formatDate(note.updatedAt)}
               </span>
+              {!note.isOwner && note.owner && (
+                <span className="text-xs text-blue-500 truncate">
+                  · from {note.owner.display_name || note.owner.email}
+                </span>
+              )}
+              {note.sharePermission && (
+                <span className="text-[10px] uppercase font-semibold text-blue-500/80">
+                  {note.sharePermission}
+                </span>
+              )}
             </div>
 
             {isGrid ? (
               <p className="text-xs text-slate-600 line-clamp-4 mb-2">
-                {note.hasPassword ? "🔒 Locked" : getExcerpt(note.content, 160)}
+                {note.hasPassword
+                  ? "🔒 Locked"
+                  : getExcerpt(note.content, 160)}
               </p>
             ) : (
               <p className="text-xs text-slate-600 truncate">
@@ -307,7 +394,7 @@ const NoteCard = React.memo(
                   </span>
                 ))}
                 {note.labels.length > 3 && (
-                  <span className="px-2 py-0.5 text-xs text-dark-50">
+                  <span className="px-2 py-0.5 text-xs text-slate-500">
                     +{note.labels.length - 3}
                   </span>
                 )}
@@ -315,26 +402,28 @@ const NoteCard = React.memo(
             )}
           </div>
 
-          <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
-            <button
-              onClick={(e) => onTogglePin(e, note.id)}
-              className={`p-1.5 rounded-md transition-colors ${
-                note.isPinned
-                  ? "text-accent-600 hover:bg-white/60"
-                  : "text-slate-500 hover:text-surface-200 hover:bg-white/60"
-              }`}
-              aria-label={note.isPinned ? "Unpin" : "Pin"}
-            >
-              <Pin size={14} />
-            </button>
-            <button
-              onClick={(e) => onDelete(e, note)}
-              className="p-1.5 rounded-md text-slate-500 hover:text-danger-600 hover:bg-white/60 transition-colors"
-              aria-label="Delete"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
+          {note.isOwner && (
+            <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
+              <button
+                onClick={(e) => onTogglePin(e, note.id)}
+                className={`p-1.5 rounded-md transition-colors ${
+                  note.isPinned
+                    ? "text-accent-600 hover:bg-white/60"
+                    : "text-slate-500 hover:text-surface-200 hover:bg-white/60"
+                }`}
+                aria-label={note.isPinned ? "Unpin" : "Pin"}
+              >
+                <Pin size={14} />
+              </button>
+              <button
+                onClick={(e) => onDelete(e, note)}
+                className="p-1.5 rounded-md text-slate-500 hover:text-danger-600 hover:bg-white/60 transition-colors"
+                aria-label="Delete"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );

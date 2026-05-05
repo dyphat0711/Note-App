@@ -4,20 +4,22 @@ declare(strict_types=1);
 
 namespace App\Http\Requests\Sharing;
 
+use App\Models\Note;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class ShareNoteRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
     }
 
     /**
+     * Per spec section 2.5 "better" approach: validate that the email belongs to a
+     * registered user.
+     *
      * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
      */
     public function rules(): array
@@ -28,8 +30,23 @@ class ShareNoteRequest extends FormRequest
                 'string',
                 'email',
                 'max:255',
+                Rule::exists('users', 'email'),
             ],
             'permission' => ['required', 'string', Rule::in(['read', 'edit'])],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator): void {
+            /** @var Note|null $note */
+            $note = $this->route('note');
+            $email = (string) $this->input('email', '');
+            $owner = $note?->user;
+
+            if ($owner !== null && strcasecmp($owner->email, $email) === 0) {
+                $validator->errors()->add('email', 'You cannot share a note with yourself.');
+            }
+        });
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Http\Requests\Sharing\ShareNoteRequest;
+use App\Http\Requests\Sharing\UpdateSharePermissionRequest;
 use App\Http\Resources\NoteResource;
 use App\Http\Resources\SharedNoteResource;
 use App\Models\Note;
@@ -21,7 +22,7 @@ class NoteSharingController extends Controller
     }
 
     /**
-     * Share a note with a user by email.
+     * Share a note with a registered user by email (with read or edit permission).
      */
     public function store(ShareNoteRequest $request, Note $note): JsonResponse
     {
@@ -42,6 +43,25 @@ class NoteSharingController extends Controller
     }
 
     /**
+     * Update an existing share's permission (read <-> edit).
+     */
+    public function update(UpdateSharePermissionRequest $request, Note $note, int $shareId): JsonResponse
+    {
+        $this->authorize('share', $note);
+
+        $sharedNote = $this->sharingService->updatePermission(
+            $note,
+            $shareId,
+            $request->validated()['permission'],
+        );
+
+        return response()->json([
+            'message' => 'Share permission updated successfully',
+            'data' => new SharedNoteResource($sharedNote),
+        ]);
+    }
+
+    /**
      * Revoke a share permission.
      */
     public function destroy(Request $request, Note $note, int $shareId): JsonResponse
@@ -56,7 +76,7 @@ class NoteSharingController extends Controller
     }
 
     /**
-     * Get notes shared with the current user.
+     * Get notes shared with the current user (recipient dashboard).
      */
     public function sharedWithMe(Request $request): JsonResponse
     {
@@ -68,5 +88,19 @@ class NoteSharingController extends Controller
         return response()->json([
             'data' => NoteResource::collection($notes),
         ]);
+    }
+
+    /**
+     * Broadcast a "user is typing" event for a shared note (Phase 3 wires Reverb).
+     */
+    public function typing(Request $request, Note $note): JsonResponse
+    {
+        $this->authorize('view', $note);
+
+        if (class_exists(\App\Events\NoteUserTyping::class)) {
+            event(new \App\Events\NoteUserTyping($note, (int) $request->user()->id));
+        }
+
+        return response()->json(['ok' => true]);
     }
 }

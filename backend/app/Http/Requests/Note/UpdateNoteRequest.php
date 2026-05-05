@@ -8,9 +8,6 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateNoteRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
@@ -21,12 +18,13 @@ class UpdateNoteRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Auto-save sends partial payloads, so `sometimes` is required on each field.
+        // Per-note password mutations go through PATCH /notes/{note}/password,
+        // never through the generic update endpoint.
         return [
             'title' => ['sometimes', 'required', 'string', 'max:255'],
-            'content' => ['nullable', 'string'],
-            'password' => ['nullable', 'string', 'max:255'],
-            'folder_id' => ['nullable', 'integer', 'exists:folders,id'],
-            'label_ids' => ['nullable', 'array'],
+            'content' => ['sometimes', 'nullable', 'string'],
+            'label_ids' => ['sometimes', 'nullable', 'array'],
             'label_ids.*' => ['integer', 'exists:labels,id'],
         ];
     }

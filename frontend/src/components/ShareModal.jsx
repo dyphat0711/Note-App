@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   X,
   Share2,
@@ -11,45 +11,86 @@ import {
 } from "lucide-react";
 import useNoteStore from "../store/useNoteStore";
 
-const ShareModal = React.memo(({ isOpen, note, onClose }) => {
-  const { updateNote } = useNoteStore();
+const ShareModal = React.memo(({ isOpen, note, onClose, presenceUsers = [], typingUsers = [] }) => {
+  const shareNote = useNoteStore((s) => s.shareNote);
+  const updatePermission = useNoteStore((s) => s.updateSharePermission);
+  const revokeShare = useNoteStore((s) => s.revokeShare);
+
   const [email, setEmail] = useState("");
-  const [permission, setPermission] = useState("edit"); // 'read' | 'edit'
+  const [permission, setPermission] = useState("edit");
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setEmail("");
+      setPermission("edit");
+      setError("");
+      setSuccess("");
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const sharedWith = note?.sharedWith || [];
+  const shares = note?.shares || [];
 
-  const handleShare = () => {
+  async function handleShare(e) {
+    e?.preventDefault?.();
     setError("");
+    setSuccess("");
     if (!email.trim()) {
-      setError("Email is required");
+      setError("Email is required.");
       return;
     }
     if (!email.includes("@")) {
-      setError("Invalid email address");
+      setError("Invalid email address.");
       return;
     }
-    if (sharedWith.some((s) => s.email === email.trim())) {
-      setError("This email has already been added");
+    if (shares.some((s) => s.email.toLowerCase() === email.trim().toLowerCase())) {
+      setError("This email already has access. Use the permission selector to update.");
       return;
     }
-    const newSharedWith = [...sharedWith, { email: email.trim(), permission }];
-    updateNote(note.id, { isShared: true, sharedWith: newSharedWith });
-    setEmail("");
-    setSuccess("Shared successfully");
-    setTimeout(() => setSuccess(""), 2000);
-  };
+    setSubmitting(true);
+    try {
+      await shareNote(note.id, email.trim(), permission);
+      setSuccess(`Note shared with ${email.trim()}`);
+      setEmail("");
+      setTimeout(() => setSuccess(""), 2500);
+    } catch (err) {
+      const data = err?.response?.data;
+      const msg =
+        data?.errors?.email?.[0] ||
+        data?.message ||
+        "Failed to share note.";
+      setError(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
-  const handleRevoke = (emailToRevoke) => {
-    const newSharedWith = sharedWith.filter((s) => s.email !== emailToRevoke);
-    updateNote(note.id, {
-      isShared: newSharedWith.length > 0,
-      sharedWith: newSharedWith,
-    });
-  };
+  async function handleChangePermission(share, newPermission) {
+    if (share.permission === newPermission) return;
+    try {
+      await updatePermission(note.id, share.id, newPermission);
+    } catch {
+      setError("Failed to update permission.");
+    }
+  }
+
+  async function handleRevoke(share) {
+    try {
+      await revokeShare(note.id, share.id);
+    } catch {
+      setError("Failed to revoke access.");
+    }
+  }
+
+  const presenceMap = useMemo(() => {
+    const map = new Map();
+    presenceUsers.forEach((u) => map.set(u.email?.toLowerCase?.() || u.id, u));
+    return map;
+  }, [presenceUsers]);
 
   return (
     <div
@@ -58,9 +99,8 @@ const ShareModal = React.memo(({ isOpen, note, onClose }) => {
       aria-modal="true"
       aria-labelledby="share-modal-title"
     >
-      <div className="w-full max-w-lg bg-dark-300 border border-dark-100 rounded-xl shadow-dark-lg p-6 animate-scale-in">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+      <div className="w-full max-w-lg bg-dark-300 border border-dark-100 rounded-xl shadow-dark-lg p-6 animate-scale-in max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-3">
             <div className="p-2 rounded-lg bg-blue-500/10 text-blue-400">
               <Share2 size={20} />
@@ -70,10 +110,10 @@ const ShareModal = React.memo(({ isOpen, note, onClose }) => {
                 id="share-modal-title"
                 className="text-lg font-semibold text-surface-100"
               >
-                Share Note
+                Share note
               </h3>
-              <p className="text-sm text-dark-50">
-                Collaborate with others on this note
+              <p className="text-xs text-dark-50">
+                Invite registered users to read or edit this note
               </p>
             </div>
           </div>
@@ -86,23 +126,24 @@ const ShareModal = React.memo(({ isOpen, note, onClose }) => {
           </button>
         </div>
 
-        {/* Error/Success */}
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm">
+          <div className="mb-3 p-3 rounded-lg bg-danger-500/10 border border-danger-500/20 text-danger-400 text-sm">
             {error}
           </div>
         )}
         {success && (
-          <div className="mb-4 p-3 rounded-lg bg-accent-500/10 border border-accent-500/20 text-accent-400 text-sm flex items-center gap-2">
+          <div className="mb-3 p-3 rounded-lg bg-accent-500/10 border border-accent-500/20 text-accent-400 text-sm flex items-center gap-2">
             <Check size={16} />
             {success}
           </div>
         )}
 
-        {/* Share Form */}
-        <div className="p-4 rounded-lg bg-dark-200 border border-dark-100 mb-6">
+        <form
+          onSubmit={handleShare}
+          className="p-4 rounded-lg bg-dark-200 border border-dark-100 mb-5"
+        >
           <h4 className="text-sm font-medium text-surface-200 mb-3">
-            Invite People
+            Invite people
           </h4>
           <div className="flex gap-3 mb-3">
             <div className="flex-1 relative">
@@ -114,97 +155,99 @@ const ShareModal = React.memo(({ isOpen, note, onClose }) => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleShare()}
                 className="input-dark pl-9"
-                placeholder="Enter email address"
+                placeholder="Recipient email"
+                required
               />
             </div>
             <select
               value={permission}
               onChange={(e) => setPermission(e.target.value)}
-              className="input-dark w-28"
+              className="input-dark w-32"
             >
               <option value="edit">Can edit</option>
               <option value="read">Can view</option>
             </select>
           </div>
-          <button onClick={handleShare} className="btn-primary w-full">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="btn-primary w-full"
+          >
             <Share2 size={14} className="inline mr-2" />
-            Share
+            {submitting ? "Sharing..." : "Share"}
           </button>
-        </div>
+        </form>
 
-        {/* Current Collaborators */}
-        {sharedWith.length > 0 && (
+        {shares.length > 0 ? (
           <div>
             <h4 className="text-sm font-medium text-surface-200 mb-3 flex items-center gap-2">
               <Users size={14} />
-              People with access ({sharedWith.length})
+              People with access ({shares.length})
             </h4>
-            <div className="space-y-2">
-              {sharedWith.map((share, index) => (
-                <div
-                  key={index}
-                  className="flex items-center justify-between p-3 rounded-lg bg-dark-200 border border-dark-100"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-dark-100 flex items-center justify-center text-sm font-medium text-surface-200">
-                      {share.email.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="text-sm text-surface-200">{share.email}</p>
-                      <div className="flex items-center gap-1.5 mt-0.5">
-                        {share.permission === "edit" ? (
-                          <Edit3 size={12} className="text-blue-400" />
-                        ) : (
-                          <Eye size={12} className="text-dark-50" />
-                        )}
-                        <span className="text-xs text-dark-50 capitalize">
-                          {share.permission === "edit"
-                            ? "Can edit"
-                            : "Can view"}
+            <ul className="space-y-2">
+              {shares.map((share) => {
+                const presence = presenceMap.get(share.email?.toLowerCase?.());
+                return (
+                  <li
+                    key={share.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-dark-200 border border-dark-100"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="relative">
+                        <span className="w-8 h-8 rounded-full bg-dark-100 flex items-center justify-center text-sm font-medium text-surface-200">
+                          {share.email?.charAt(0).toUpperCase() || "?"}
                         </span>
+                        {presence && (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-dark-300" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm text-surface-200 truncate">
+                          {share.email}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          {share.permission === "edit" ? (
+                            <Edit3 size={11} className="text-blue-400" />
+                          ) : (
+                            <Eye size={11} className="text-dark-50" />
+                          )}
+                          <span className="text-xs text-dark-50 capitalize">
+                            {share.permission === "edit" ? "Can edit" : "Can view"}
+                          </span>
+                          {typingUsers.includes(share.id) && (
+                            <span className="text-xs text-accent-400">· typing…</span>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => handleRevoke(share.email)}
-                    className="p-2 rounded-lg text-dark-50 hover:text-danger-400 hover:bg-dark-100 transition-colors"
-                    aria-label={`Revoke access for ${share.email}`}
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Presence Indicators (Rubric #24) */}
-        {sharedWith.length > 0 && (
-          <div className="mt-6 pt-4 border-t border-dark-300">
-            <h4 className="text-xs font-medium text-dark-50 uppercase tracking-wide mb-3">
-              Active Now
-            </h4>
-            <div className="flex items-center gap-3">
-              {sharedWith.slice(0, 3).map((share, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <div className="relative">
-                    <div className="w-7 h-7 rounded-full bg-dark-100 flex items-center justify-center text-xs font-medium text-surface-200">
-                      {share.email.charAt(0).toUpperCase()}
+                    <div className="flex items-center gap-1">
+                      <select
+                        value={share.permission}
+                        onChange={(e) => handleChangePermission(share, e.target.value)}
+                        className="bg-dark-100 border border-dark-100 text-xs text-surface-200 rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        aria-label={`Change permission for ${share.email}`}
+                      >
+                        <option value="edit">edit</option>
+                        <option value="read">read</option>
+                      </select>
+                      <button
+                        onClick={() => handleRevoke(share)}
+                        className="p-2 rounded-lg text-dark-50 hover:text-danger-400 hover:bg-dark-100 transition-colors"
+                        aria-label={`Revoke access for ${share.email}`}
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
-                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-dark-300" />
-                  </div>
-                  <span className="text-xs text-dark-50">
-                    {share.email.split("@")[0]}
-                    {index === 0 && (
-                      <span className="text-accent-400 ml-1">is typing...</span>
-                    )}
-                  </span>
-                </div>
-              ))}
-            </div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
+        ) : (
+          <p className="text-xs text-dark-50">
+            This note hasn't been shared yet.
+          </p>
         )}
       </div>
     </div>

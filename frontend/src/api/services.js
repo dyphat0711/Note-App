@@ -6,6 +6,24 @@ export const authAPI = {
   login: (data) => api.post("/login", data),
   logout: () => api.post("/logout"),
   getUser: () => api.get("/user"),
+  resendVerification: () => api.post("/email/resend"),
+  // Link-based password reset
+  forgotPassword: (email) => api.post("/forgot-password", { email }),
+  resetPassword: (data) => api.post("/reset-password", data),
+  // OTP-based password reset
+  forgotPasswordOtp: (email) => api.post("/forgot-password-otp", { email }),
+  verifyOtp: (data) => api.post("/verify-otp", data),
+  resetPasswordOtp: (data) => api.post("/reset-password-otp", data),
+};
+
+export const profileAPI = {
+  update: (data) => api.put("/user", data),
+  uploadAvatar: (formData) =>
+    api.post("/user/avatar", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  deleteAvatar: () => api.delete("/user/avatar"),
+  changePassword: (data) => api.post("/user/password", data),
 };
 
 export const noteAPI = {
@@ -16,10 +34,9 @@ export const noteAPI = {
   delete: (id) => api.delete(`/notes/${id}`),
   search: (q) => api.get("/notes/search", { params: { q } }),
   togglePin: (id) => api.patch(`/notes/${id}/pin`),
-  setPassword: (id, password) =>
-    api.patch(`/notes/${id}/password`, { password }),
+  setPassword: (id, payload) => api.patch(`/notes/${id}/password`, payload),
   unlock: (id, password) => api.post(`/notes/${id}/unlock`, { password }),
-  move: (id, folderId) => api.patch(`/notes/${id}/move`, { folder_id: folderId }),
+  typing: (id) => api.post(`/notes/${id}/typing`),
 };
 
 export const labelAPI = {
@@ -29,15 +46,10 @@ export const labelAPI = {
   delete: (id) => api.delete(`/labels/${id}`),
 };
 
-export const folderAPI = {
-  getAll: () => api.get("/folders"),
-  create: (data) => api.post("/folders", data),
-  update: (id, data) => api.put(`/folders/${id}`, data),
-  delete: (id) => api.delete(`/folders/${id}`),
-};
-
 export const sharingAPI = {
   share: (noteId, data) => api.post(`/notes/${noteId}/share`, data),
+  updatePermission: (noteId, shareId, permission) =>
+    api.patch(`/notes/${noteId}/share/${shareId}`, { permission }),
   revoke: (noteId, shareId) =>
     api.delete(`/notes/${noteId}/share/${shareId}`),
   getSharedWithMe: () => api.get("/notes/shared-with-me"),
@@ -45,7 +57,7 @@ export const sharingAPI = {
 
 export const preferencesAPI = {
   get: () => api.get("/preferences"),
-  update: (data) => api.put("/preferences", data),
+  update: (preferences) => api.put("/preferences", { preferences }),
   reset: () => api.delete("/preferences"),
 };
 
@@ -57,4 +69,10 @@ export const attachmentAPI = {
   getAll: (noteId) => api.get(`/notes/${noteId}/attachments`),
   delete: (noteId, attachmentId) =>
     api.delete(`/notes/${noteId}/attachments/${attachmentId}`),
+};
+
+export const notificationAPI = {
+  list: () => api.get("/notifications"),
+  markRead: (id) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch("/notifications/read-all"),
 };

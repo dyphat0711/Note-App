@@ -8,9 +8,6 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class StoreNoteRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
         return true;
@@ -21,11 +18,12 @@ class StoreNoteRequest extends FormRequest
      */
     public function rules(): array
     {
+        // Spec section 2.2 explicitly states: "users are required to input only the title and content".
+        // Per-note password is handled by a dedicated endpoint. Labels are an attribute relationship,
+        // accepted as label_ids for convenience.
         return [
             'title' => ['required', 'string', 'max:255'],
             'content' => ['nullable', 'string'],
-            'password' => ['nullable', 'string', 'max:255'],
-            'folder_id' => ['nullable', 'integer', 'exists:folders,id'],
             'label_ids' => ['nullable', 'array'],
             'label_ids.*' => ['integer', 'exists:labels,id'],
         ];

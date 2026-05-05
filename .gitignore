@@ -8,6 +8,7 @@
 .agents/
 .qwen/
 .plans/
+plans/
 
 # ===========================
 # Dependencies

@@ -7,17 +7,21 @@ namespace App\Services;
 use App\Models\Note;
 use App\Models\SharedNote;
 use App\Models\User;
+use App\Notifications\NoteSharedNotification;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class SharingService
 {
     /**
-     * Share a note with a user by email.
+     * Share a note with a registered user by email. Sends an in-app + email notification
+     * unless `silent` is true (used internally to avoid double-notify on permission updates).
      */
-    public function shareNote(Note $note, string $email, string $permission): SharedNote
+    public function shareNote(Note $note, string $email, string $permission, bool $silent = false): SharedNote
     {
-        return DB::transaction(function () use ($note, $email, $permission): SharedNote {
+        return DB::transaction(function () use ($note, $email, $permission, $silent): SharedNote {
+            /** @var SharedNote $sharedNote */
             $sharedNote = $note->shares()->updateOrCreate(
                 ['shared_with_email' => $email],
                 [
@@ -26,7 +30,29 @@ class SharingService
                 ],
             );
 
-            return $sharedNote->load('note');
+            if (! $silent) {
+                $recipient = User::where('email', $email)->first();
+                $owner = $note->user;
+                if ($recipient !== null && $owner !== null) {
+                    Notification::send($recipient, new NoteSharedNotification($note, $owner, $permission));
+                }
+            }
+
+            return $sharedNote;
+        });
+    }
+
+    /**
+     * Update an existing share's permission.
+     */
+    public function updatePermission(Note $note, int $shareId, string $permission): SharedNote
+    {
+        return DB::transaction(function () use ($note, $shareId, $permission): SharedNote {
+            /** @var SharedNote $share */
+            $share = $note->shares()->findOrFail($shareId);
+            $share->update(['permission' => $permission]);
+
+            return $share;
         });
     }
 
@@ -38,12 +64,14 @@ class SharingService
         return DB::transaction(function () use ($note, $shareId): bool {
             $share = $note->shares()->findOrFail($shareId);
 
-            return $share->delete();
+            return (bool) $share->delete();
         });
     }
 
     /**
-     * Get notes shared with a user.
+     * Get notes shared with a user. Eager-loads the owner so the recipient can see who
+     * shared the note. Does NOT eager-load `shares` (privacy: recipients should not see
+     * the full list of other recipients).
      *
      * @return Collection<int, Note>
      */
@@ -52,7 +80,14 @@ class SharingService
         return Note::whereHas('shares', function ($query) use ($user): void {
             $query->where('shared_with_email', $user->email);
         })
-            ->with(['labels', 'shares'])
+            ->with([
+                'labels',
+                'attachments',
+                'user:id,display_name,email,avatar_path',
+                // Only attach the share record relevant to this user, so they know
+                // their own permission without leaking other recipients' details.
+                'shares' => fn ($q) => $q->where('shared_with_email', $user->email),
+            ])
             ->ordered()
             ->get();
     }
@@ -70,6 +105,6 @@ class SharingService
             return false;
         }
 
-        return $share->can_edit;
+        return $share->permission === 'edit';
     }
 }

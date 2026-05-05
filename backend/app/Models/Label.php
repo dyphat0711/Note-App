@@ -43,7 +43,7 @@ class Label extends Model
      */
     public function notes(): BelongsToMany
     {
-        return $this->belongsToMany(Note::class)->withTimestamps();
+        return $this->belongsToMany(Note::class, 'note_label')->withTimestamps();
     }
 
     /**

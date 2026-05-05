@@ -6,16 +6,18 @@ A full-stack note management application with a Laravel API backend and a React 
 
 ## 📋 Features
 
-- ✅ **Authentication** — Register, login, logout with Laravel Sanctum
-- ✅ **Note CRUD** — Create, read, update, delete notes with auto-save
-- ✅ **Labels & Folders** — Organize notes with tags and folders
-- ✅ **Search** — Live debounced search (300ms) across titles and content
+- ✅ **Authentication** — Register, login, logout, email verification, password reset (link or OTP)
+- ✅ **Profile & Avatar** — Edit display name, upload/delete avatar, change password
+- ✅ **Preferences** — Theme (light/dark/system), font size, default note color, default view
+- ✅ **Note CRUD** — Create, edit (with 300 ms debounced auto-save), delete
+- ✅ **Labels** — Create, rename, delete; multi-select label filtering
+- ✅ **Search** — Server-side debounced search across title and content
 - ✅ **Pinning** — Pin important notes to the top
-- ✅ **Password Protection** — Lock individual notes with a password
-- ✅ **Sharing** — Share notes with other users (read/edit permissions)
-- ✅ **Grid/List Views** — Toggle between card grid and compact list
-- ✅ **Dark Theme** — Nowted-inspired polished dark UI
-- ✅ **Responsive** — Works on mobile, tablet, and desktop
+- ✅ **Password Protection** — Per-note lock (set / change / disable) with current-password gate
+- ✅ **Sharing** — Share with another registered user (read or edit) + email & in-app notification
+- ✅ **Real-time collaboration** — Laravel Reverb (WebSockets) + Echo + presence channel
+- ✅ **PWA / offline** — Workbox service worker, IndexedDB cache, mutation queue, offline badge
+- ✅ **Grid/List Views, Dark theme, Mobile responsive**
 
 ---
 
@@ -23,9 +25,10 @@ A full-stack note management application with a Laravel API backend and a React 
 
 | Layer | Technology |
 |-------|-----------|
-| **Backend** | PHP 8.3+, Laravel 11+, MySQL 8.0 |
-| **Frontend** | React 18, Vite 5, Tailwind CSS 3, Zustand, React Query |
+| **Backend** | PHP 8.3+, Laravel 11+, MySQL 8.0, Sanctum, Reverb |
+| **Frontend** | React 18, Vite 5, Tailwind CSS 3, Zustand, Echo, Workbox |
 | **Auth** | Laravel Sanctum (token-based) |
+| **Tests** | PHPUnit (64 feature tests), Vitest (13 unit), Playwright (E2E) |
 
 ---
 
@@ -84,16 +87,24 @@ NoteFlow/
    php artisan key:generate
    ```
 
-6. Chạy migrations để tạo các bảng trong cơ sở dữ liệu:
+6. Chạy migrations và seed dữ liệu mẫu:
    ```bash
-   php artisan migrate
+   php artisan migrate:fresh --seed
    ```
+   Tài khoản demo được tạo sẵn:
+   - `alice@example.test` / `Password123!` (đã verify, có note pinned/locked/shared)
+   - `bob@example.test`  / `Password123!` (recipient của note đã share)
 
 7. Khởi động server backend:
    ```bash
    php artisan serve
    ```
    Backend sẽ chạy tại: **http://127.0.0.1:8000**
+
+8. *(Tuỳ chọn — cho real-time collaboration)* Khởi động Reverb WebSocket server trong terminal riêng:
+   ```bash
+   php artisan reverb:start
+   ```
 
 ---
 
@@ -126,15 +137,70 @@ Bây giờ bạn có thể đăng ký tài khoản mới và bắt đầu sử d
 
 ---
 
-## 🔐 API Endpoints cơ bản (Tham khảo)
+## 🐳 Triển khai bằng Docker (one-shot)
 
-- `POST /api/register` - Đăng ký
-- `POST /api/login` - Đăng nhập
-- `POST /api/logout` - Đăng xuất
-- `GET /api/notes` - Lấy danh sách ghi chú
-- `POST /api/notes` - Tạo ghi chú mới
-- `PUT /api/notes/{id}` - Cập nhật ghi chú
-- `DELETE /api/notes/{id}` - Xóa ghi chú
+```bash
+cp .env.docker.example .env
+docker compose up -d --build
+docker compose exec php-fpm php artisan key:generate
+docker compose exec php-fpm php artisan migrate:fresh --seed
+docker compose exec php-fpm php artisan storage:link
+# Build frontend assets and let Nginx serve them at http://localhost
+cd frontend && npm install && npm run build
+```
+
+Các service được khởi tạo:
+
+| Service | Container | Port |
+|---------|-----------|------|
+| `mysql` | `noteflow-mysql` | 3306 |
+| `php-fpm` | `noteflow-php` | 9000 (internal) |
+| `reverb` | `noteflow-reverb` | 8080 (WebSocket cho real-time) |
+| `nginx` | `noteflow-nginx` | 80 (reverse proxy + serve SPA) |
+
+Truy cập http://localhost — Nginx route:
+- `/api/*` → Laravel
+- `/storage/*` → ảnh upload
+- `/app/*` → WebSocket → Reverb
+- mọi đường dẫn còn lại → React SPA
+
+---
+
+## 🧪 Chạy bộ test
+
+```bash
+# Backend (PHPUnit, SQLite in-memory) — 64 tests
+cd backend
+php -d extension=pdo_sqlite -d extension=sqlite3 artisan test
+
+# Frontend (Vitest unit) — 13 tests
+cd frontend
+npm test
+
+# Frontend (Playwright E2E)
+# Yêu cầu BE + FE đang chạy trên cổng 8000 + 5173
+npm run test:e2e
+```
+
+Xem [Rubrik-checklist.md](Rubrik-checklist.md) để map chính xác từng mục rubric → demo flow → test.
+
+---
+
+## 🔐 API Endpoints chính
+
+| Nhóm | Endpoints |
+|------|-----------|
+| Auth | `POST /api/register`, `POST /api/login`, `POST /api/logout`, `POST /api/email/resend`, `GET /api/email/verify/{id}/{hash}` |
+| Password reset | `POST /api/forgot-password`, `POST /api/forgot-password-otp`, `POST /api/verify-otp`, `POST /api/reset-password{,-otp}` |
+| Profile | `GET/PUT /api/user`, `POST/DELETE /api/user/avatar`, `POST /api/user/password` |
+| Preferences | `GET/PUT/DELETE /api/preferences` |
+| Notes | `GET/POST /api/notes`, `GET/PUT/DELETE /api/notes/{id}`, `PATCH /api/notes/{id}/pin`, `GET /api/notes/search?q=…` |
+| Labels | `apiResource /api/labels` |
+| Attachments | `GET/POST /api/notes/{id}/attachments`, `DELETE /api/notes/{id}/attachments/{att}` |
+| Password lock | `PATCH /api/notes/{id}/password`, `POST /api/notes/{id}/unlock` |
+| Sharing | `POST /api/notes/{id}/share`, `PATCH /api/notes/{id}/share/{shareId}`, `DELETE /api/notes/{id}/share/{shareId}`, `GET /api/notes/shared-with-me` |
+| Real-time | `private-note.{id}` (broadcast `NoteUpdated`), `presence-note.{id}` (typing) |
+| Notifications | `GET /api/notifications`, `POST /api/notifications/{id}/read`, `POST /api/notifications/read-all` |
 
 ---
 

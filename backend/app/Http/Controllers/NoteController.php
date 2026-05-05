@@ -23,14 +23,16 @@ class NoteController extends Controller
     }
 
     /**
-     * Display a listing of the user's notes.
+     * Display a listing of the user's notes, optionally filtered by labels.
      */
     public function index(Request $request): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
 
-        $notes = $this->noteService->getUserNotes($user);
+        $labelIds = $this->parseLabelIds($request->query('label_ids'));
+
+        $notes = $this->noteService->getUserNotes($user, $labelIds);
 
         return response()->json([
             'data' => NoteResource::collection($notes),
@@ -45,7 +47,7 @@ class NoteController extends Controller
         $this->authorize('view', $note);
 
         return response()->json([
-            'data' => new NoteResource($note->load(['labels', 'shares'])),
+            'data' => new NoteResource($note->load(['labels', 'shares', 'attachments', 'user'])),
         ]);
     }
 
@@ -67,12 +69,18 @@ class NoteController extends Controller
 
     /**
      * Update the specified note.
+     * Allowed for the owner OR a sharee with edit permission.
      */
     public function update(UpdateNoteRequest $request, Note $note): JsonResponse
     {
         $this->authorize('update', $note);
 
         $note = $this->noteService->updateNote($note, $request->validated());
+
+        // Broadcast change to collaborators when the note is shared (Phase 3 wires Reverb).
+        if (class_exists(\App\Events\NoteUpdated::class) && $note->shares()->exists()) {
+            event(new \App\Events\NoteUpdated($note, (int) $request->user()->id));
+        }
 
         return response()->json([
             'message' => 'Note updated successfully',
@@ -91,21 +99,32 @@ class NoteController extends Controller
 
         return response()->json([
             'message' => 'Note pin toggled successfully',
-            'data' => new NoteResource($note),
+            'data' => new NoteResource($note->load(['labels', 'shares', 'attachments'])),
         ]);
     }
 
     /**
-     * Set or remove the note password.
+     * Set, change, or remove the note password.
      */
     public function setPassword(SetNotePasswordRequest $request, Note $note): JsonResponse
     {
         $this->authorize('setPassword', $note);
 
-        $note = $this->noteService->updateNote($note, $request->validated());
+        $validated = $request->validated();
+        $action = $validated['action'];
+
+        if ($action === 'disable') {
+            $note = $this->noteService->setNotePassword($note, null);
+            $message = 'Note password disabled successfully';
+        } else {
+            $note = $this->noteService->setNotePassword($note, $validated['password']);
+            $message = $action === 'set'
+                ? 'Note password set successfully'
+                : 'Note password changed successfully';
+        }
 
         return response()->json([
-            'message' => 'Note password updated successfully',
+            'message' => $message,
             'data' => new NoteResource($note),
         ]);
     }
@@ -149,25 +168,6 @@ class NoteController extends Controller
     }
 
     /**
-     * Move a note to a different folder.
-     */
-    public function moveToFolder(Request $request, Note $note): JsonResponse
-    {
-        $this->authorize('update', $note);
-
-        $request->validate([
-            'folder_id' => ['nullable', 'integer', 'exists:folders,id'],
-        ]);
-
-        $note->update(['folder_id' => $request->input('folder_id')]);
-
-        return response()->json([
-            'message' => 'Note moved successfully',
-            'data' => new NoteResource($note->load(['labels', 'shares', 'attachments', 'folder'])),
-        ]);
-    }
-
-    /**
      * Search notes by keyword.
      */
     public function search(Request $request): JsonResponse
@@ -184,5 +184,22 @@ class NoteController extends Controller
         return response()->json([
             'data' => NoteResource::collection($notes),
         ]);
+    }
+
+    /**
+     * Parse a comma-separated label_ids query string into an array of ints.
+     *
+     * @return array<int, int>
+     */
+    private function parseLabelIds(?string $raw): array
+    {
+        if ($raw === null || $raw === '') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map('intval', explode(',', $raw)),
+            fn (int $id): bool => $id > 0,
+        ));
     }
 }

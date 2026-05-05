@@ -8,16 +8,14 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UploadAttachmentRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return true;
+        return $this->user() !== null;
     }
 
     /**
-     * Get the validation rules that apply to the request.
+     * Per spec section 2.2: "Notes can also support image attachments, with the option to
+     * include one or multiple images." Only images are allowed.
      *
      * @return array<string, mixed>
      */
@@ -28,8 +26,9 @@ class UploadAttachmentRequest extends FormRequest
             'files.*' => [
                 'required',
                 'file',
-                'mimes:jpg,jpeg,png,gif,webp,pdf,txt,md,doc,docx',
-                'max:10240', // 10MB per file
+                'image',
+                'mimes:jpg,jpeg,png,gif,webp',
+                'max:5120', // 5MB per image
             ],
         ];
     }

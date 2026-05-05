@@ -33,7 +33,6 @@ class Note extends Model
 
     protected $fillable = [
         'user_id',
-        'folder_id',
         'title',
         'content',
         'password',
@@ -61,17 +60,12 @@ class Note extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function folder(): BelongsTo
-    {
-        return $this->belongsTo(Folder::class);
-    }
-
     /**
      * @return BelongsToMany<Label, $this>
      */
     public function labels(): BelongsToMany
     {
-        return $this->belongsToMany(Label::class)->withTimestamps();
+        return $this->belongsToMany(Label::class, 'note_label')->withTimestamps();
     }
 
     /**

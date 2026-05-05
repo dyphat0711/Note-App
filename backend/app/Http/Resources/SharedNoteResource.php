@@ -24,7 +24,7 @@ class SharedNoteResource extends JsonResource
             'owner_id' => $this->owner_id,
             'shared_with_email' => $this->shared_with_email,
             'permission' => $this->permission,
-            'created_at' => $this->created_at->toIso8601String(),
+            'shared_at' => $this->created_at->toIso8601String(),
             'updated_at' => $this->updated_at->toIso8601String(),
         ];
     }

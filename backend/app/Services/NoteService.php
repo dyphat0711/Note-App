@@ -13,14 +13,20 @@ use Illuminate\Support\Facades\DB;
 class NoteService
 {
     /**
-     * Get all notes for a user with eager-loaded relationships.
+     * Get all notes for a user with eager-loaded relationships, optionally filtered by labels.
+     *
+     * @param array<int> $labelIds
      */
-    public function getUserNotes(User $user): Collection
+    public function getUserNotes(User $user, array $labelIds = []): Collection
     {
-        return $user->notes()
-            ->with(['labels', 'shares', 'attachments', 'folder'])
-            ->ordered()
-            ->get();
+        $query = $user->notes()
+            ->with(['labels', 'shares', 'attachments']);
+
+        if (! empty($labelIds)) {
+            $query->whereHas('labels', fn ($q) => $q->whereIn('labels.id', $labelIds));
+        }
+
+        return $query->ordered()->get();
     }
 
     /**
@@ -42,8 +48,6 @@ class NoteService
             $note = $user->notes()->create([
                 'title' => $data['title'],
                 'content' => $data['content'] ?? null,
-                'password' => $data['password'] ?? null,
-                'folder_id' => $data['folder_id'] ?? null,
                 'is_pinned' => false,
             ]);
 
@@ -51,12 +55,13 @@ class NoteService
                 $this->attachLabels($note, $data['label_ids'], $user);
             }
 
-            return $note->load(['labels', 'shares', 'attachments', 'folder']);
+            return $note->load(['labels', 'shares', 'attachments']);
         });
     }
 
     /**
-     * Update an existing note.
+     * Update an existing note. Only title, content and label_ids can be updated here.
+     * Password changes go through a dedicated endpoint.
      */
     public function updateNote(Note $note, array $data): Note
     {
@@ -71,10 +76,6 @@ class NoteService
                 $updateData['content'] = $data['content'];
             }
 
-            if (array_key_exists('password', $data)) {
-                $updateData['password'] = $data['password'];
-            }
-
             if (! empty($updateData)) {
                 $note->update($updateData);
             }
@@ -83,7 +84,19 @@ class NoteService
                 $this->syncLabels($note, $data['label_ids'] ?? [], $note->user);
             }
 
-            return $note->load(['labels', 'shares', 'attachments', 'folder']);
+            return $note->load(['labels', 'shares', 'attachments']);
+        });
+    }
+
+    /**
+     * Set, change, or remove the per-note password.
+     */
+    public function setNotePassword(Note $note, ?string $newPassword): Note
+    {
+        return DB::transaction(function () use ($note, $newPassword): Note {
+            $note->update(['password' => $newPassword]);
+
+            return $note->load(['labels', 'shares', 'attachments']);
         });
     }
 
