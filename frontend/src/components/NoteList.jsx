@@ -175,9 +175,8 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
 
   return (
     <div
-      className={`flex-shrink-0 bg-dark-400 border-r border-dark-300 flex flex-col h-full ${
-        isGrid ? "w-[420px]" : "w-80"
-      }`}
+      className={`flex-shrink-0 bg-dark-400 border-r border-dark-300 flex flex-col h-full ${isGrid ? "w-[420px]" : "w-80"
+        }`}
     >
       {/* Header */}
       <div className="px-4 py-4 border-b border-dark-300">
@@ -214,11 +213,10 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
         <div className="flex items-center gap-1 bg-dark-200 rounded-lg p-0.5">
           <button
             onClick={() => setViewMode("grid")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
-              viewMode === "grid"
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${viewMode === "grid"
                 ? "bg-dark-100 text-surface-100"
                 : "text-dark-50 hover:text-surface-200"
-            }`}
+              }`}
             aria-label="Grid view"
             aria-pressed={viewMode === "grid"}
           >
@@ -227,11 +225,10 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
           </button>
           <button
             onClick={() => setViewMode("list")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
-              viewMode === "list"
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${viewMode === "list"
                 ? "bg-dark-100 text-surface-100"
                 : "text-dark-50 hover:text-surface-200"
-            }`}
+              }`}
             aria-label="List view"
             aria-pressed={viewMode === "list"}
           >
@@ -243,16 +240,14 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
 
       {/* Note List */}
       <div
-        className={`flex-1 overflow-y-auto p-3 ${
-          isGrid ? "grid grid-cols-2 gap-3 auto-rows-min" : "space-y-2"
-        }`}
+        className={`flex-1 overflow-y-auto p-3 ${isGrid ? "grid grid-cols-2 gap-3 auto-rows-min" : "space-y-2"
+          }`}
         role="list"
       >
         {filteredNotes.length === 0 ? (
           <div
-            className={`flex flex-col items-center justify-center py-12 text-dark-50 ${
-              isGrid ? "col-span-2" : ""
-            }`}
+            className={`flex flex-col items-center justify-center py-12 text-dark-50 ${isGrid ? "col-span-2" : ""
+              }`}
           >
             <FileText size={32} className="mb-3 opacity-50" />
             <p className="text-sm">No notes found</p>
@@ -303,15 +298,13 @@ const NoteCard = React.memo(
     return (
       <div
         onClick={() => onOpen(note.id)}
-        className={`group relative rounded-xl cursor-pointer transition-all duration-150 border shadow-dark ${
-          isGrid
+        className={`group relative rounded-xl cursor-pointer transition-all duration-150 border shadow-dark ${isGrid
             ? `${paletteClass} p-4 hover:shadow-dark-lg flex flex-col min-h-[140px]`
-            : `p-3 ${
-                isActive
-                  ? "bg-accent-50 border-accent-200"
-                  : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-dark"
-              }`
-        }`}
+            : `${paletteClass} p-3 ${isActive
+              ? "ring-2 ring-accent-400 shadow-dark-lg"
+              : "hover:shadow-dark-lg"
+            }`
+          }`}
         role="listitem"
         tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && onOpen(note.id)}
@@ -320,9 +313,8 @@ const NoteCard = React.memo(
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h3
-                className={`font-semibold text-surface-100 truncate flex-1 ${
-                  isGrid ? "text-sm" : "text-sm"
-                }`}
+                className={`font-semibold text-surface-100 truncate flex-1 ${isGrid ? "text-sm" : "text-sm"
+                  }`}
               >
                 {note.title || "Untitled"}
               </h3>
@@ -406,11 +398,10 @@ const NoteCard = React.memo(
             <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
               <button
                 onClick={(e) => onTogglePin(e, note.id)}
-                className={`p-1.5 rounded-md transition-colors ${
-                  note.isPinned
+                className={`p-1.5 rounded-md transition-colors ${note.isPinned
                     ? "text-accent-600 hover:bg-white/60"
                     : "text-slate-500 hover:text-surface-200 hover:bg-white/60"
-                }`}
+                  }`}
                 aria-label={note.isPinned ? "Unpin" : "Pin"}
               >
                 <Pin size={14} />
