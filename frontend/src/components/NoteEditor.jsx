@@ -102,7 +102,12 @@ const NoteEditor = React.memo(({ note, onClose }) => {
     if (!note || !canEdit || title === note.title) return;
     const timer = setTimeout(async () => {
       setSaveStatus("saving");
-      await updateNote(note.id, { title: title || "Untitled" });
+      let finalTitle = title.trim();
+      if (!finalTitle) {
+        finalTitle = useNoteStore.getState().getNextUntitledTitle();
+        setTitle(finalTitle);
+      }
+      await updateNote(note.id, { title: finalTitle });
       setSaveStatus("saved");
     }, SAVE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
@@ -134,19 +139,30 @@ const NoteEditor = React.memo(({ note, onClose }) => {
       if (payload.updated_by === currentUser?.id) return;
       remoteUpdateRef.current = true;
       if (editor && !editor.isDestroyed && payload.content !== undefined) {
-        editor.commands.setContent(payload.content || "", false);
+        // When note is locked remotely, clear the editor content
+        if (payload.has_password) {
+          editor.commands.setContent("", false);
+        } else {
+          editor.commands.setContent(payload.content || "", false);
+        }
       }
       if (payload.title !== undefined) setTitle(payload.title);
       applyRemoteNoteUpdate(note.id, {
         title: payload.title,
-        content: payload.content,
+        content: payload.has_password ? null : payload.content,
+        hasPassword: payload.has_password,
         updatedAt: payload.updated_at,
       });
       remoteUpdateRef.current = false;
-      toast(`${payload.updated_by_name || "A collaborator"} updated this note`, {
-        icon: "✏️",
-      });
+      if (payload.has_password) {
+        toast("This note has been locked by the owner.", { icon: "🔒" });
+      } else {
+        toast(`${payload.updated_by_name || "A collaborator"} updated this note`, {
+          icon: "✏️",
+        });
+      }
     });
+
 
     if (presence) {
       presence

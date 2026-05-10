@@ -24,6 +24,7 @@ class UpdateNoteRequest extends FormRequest
         return [
             'title' => ['sometimes', 'required', 'string', 'max:255'],
             'content' => ['sometimes', 'nullable', 'string'],
+            'color' => ['sometimes', 'nullable', 'string', 'max:20'],
             'label_ids' => ['sometimes', 'nullable', 'array'],
             'label_ids.*' => ['integer', 'exists:labels,id'],
         ];

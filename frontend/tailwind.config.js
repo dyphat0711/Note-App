@@ -9,32 +9,34 @@ export default {
         body: ["Source Sans 3", "Segoe UI", "sans-serif"],
       },
       colors: {
-        // Bright pastel theme (keep existing class names, remap tokens)
-        // - dark.*: light surfaces / borders
-        // - surface.*: ink / text colors
+        // Tokens wired to CSS custom properties so .dark class works
+        // Using rgb() with space-separated values to support Tailwind opacity modifiers
         surface: {
-          50: "#0b1020",
-          100: "#0f172a",
-          200: "#1f2937",
-          300: "#334155",
+          50: "rgb(var(--surface-50) / <alpha-value>)",
+          100: "rgb(var(--surface-100) / <alpha-value>)",
+          200: "rgb(var(--surface-200) / <alpha-value>)",
+          300: "rgb(var(--surface-300) / <alpha-value>)",
         },
         dark: {
-          50: "#94a3b8",  // muted text
-          100: "#dbe3f2", // subtle border
-          200: "#eef2ff", // elevated surface
-          300: "#e8edf7", // surface border
-          400: "#f5f7ff", // sidebar surface
-          500: "#fbfcff", // app canvas
-          600: "#ffffff", // header surface
-          700: "#ffffff",
+          50: "rgb(var(--dark-50) / <alpha-value>)",
+          100: "rgb(var(--dark-100) / <alpha-value>)",
+          200: "rgb(var(--dark-200) / <alpha-value>)",
+          300: "rgb(var(--dark-300) / <alpha-value>)",
+          400: "rgb(var(--dark-400) / <alpha-value>)",
+          500: "rgb(var(--dark-500) / <alpha-value>)",
+          600: "rgb(var(--dark-600) / <alpha-value>)",
+          700: "rgb(var(--dark-700) / <alpha-value>)",
         },
-        // fresh blue accent like screenshot
+        // Indigo-violet accent palette
         accent: {
-          50: "#eff6ff",
-          100: "#dbeafe",
-          400: "#60a5fa",
-          500: "#3b82f6",
-          600: "#2563eb",
+          50: "#eef2ff",
+          100: "#e0e7ff",
+          200: "#c7d2fe",
+          300: "#a5b4fc",
+          400: "#818cf8",
+          500: "#6366f1",
+          600: "#4f46e5",
+          700: "#4338ca",
         },
         danger: {
           400: "#f87171",

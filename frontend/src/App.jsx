@@ -1,5 +1,8 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import useAuthStore from "./store/useAuthStore";
+import useNoteStore from "./store/useNoteStore";
 import ProtectedRoute from "./components/ProtectedRoute";
 import PublicRoute from "./components/PublicRoute";
 import Login from "./pages/Login";
@@ -14,6 +17,35 @@ import Preferences from "./pages/Preferences";
 import ChangePassword from "./pages/ChangePassword";
 
 function App() {
+  const user = useAuthStore((s) => s.user);
+  const setViewMode = useNoteStore((s) => s.setViewMode);
+
+  useEffect(() => {
+    const prefs = user?.preferences || { theme: "dark", font_size: 16 };
+    const root = document.documentElement;
+
+    if (prefs.theme === "dark") {
+      root.classList.add("dark");
+    } else if (prefs.theme === "light") {
+      root.classList.remove("dark");
+    } else {
+      const m = window.matchMedia("(prefers-color-scheme: dark)");
+      if (m.matches) root.classList.add("dark");
+      else root.classList.remove("dark");
+    }
+    
+    document.body.style.fontSize = `${prefs.font_size || 16}px`;
+
+    // Sync default_view preference to note store
+    if (prefs.default_view) {
+      const savedLocal = localStorage.getItem("noteflow.viewMode");
+      // Only apply user preference if no local override exists
+      if (!savedLocal) {
+        setViewMode(prefs.default_view);
+      }
+    }
+  }, [user?.preferences, setViewMode]);
+
   return (
     <BrowserRouter>
       <Toaster

@@ -33,17 +33,18 @@ class NoteResource extends JsonResource
             'user_id' => $this->user_id,
             'title' => $this->title,
             'content' => $hasPassword ? null : $this->content,
+            'color' => $this->color,
             'is_pinned' => $this->is_pinned,
             'pinned_at' => $this->pinned_at?->toIso8601String(),
             'has_password' => $hasPassword,
             'is_shared' => $this->relationLoaded('shares') ? $this->shares->isNotEmpty() : false,
             'is_owner' => $isOwner,
             'share_permission' => $sharePermission,
-            'owner' => $this->whenLoaded('user', fn () => [
+            'owner' => $this->whenLoaded('user', fn () => $this->user ? [
                 'id' => $this->user->id,
                 'display_name' => $this->user->display_name,
                 'email' => $this->user->email,
-            ]),
+            ] : null),
             'labels' => LabelResource::collection($this->whenLoaded('labels')),
             'shares' => $this->when(
                 $isOwner,

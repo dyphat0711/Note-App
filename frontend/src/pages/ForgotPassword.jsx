@@ -8,7 +8,6 @@ const ForgotPassword = () => {
   const navigate = useNavigate();
   const forgotPassword = useAuthStore((s) => s.forgotPassword);
   const [email, setEmail] = useState("");
-  const [mode, setMode] = useState("link"); // 'link' | 'otp'
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -16,18 +15,12 @@ const ForgotPassword = () => {
     e.preventDefault();
     if (!email.trim()) return;
     setLoading(true);
-    const r = await forgotPassword(email.trim(), mode);
+    const r = await forgotPassword(email.trim(), "otp");
     setLoading(false);
     if (r.success) {
       setSubmitted(true);
-      toast.success(
-        mode === "otp"
-          ? "If your account exists, an OTP has been sent."
-          : "If your account exists, a reset link has been sent.",
-      );
-      if (mode === "otp") {
-        navigate(`/reset-password/otp?email=${encodeURIComponent(email.trim())}`);
-      }
+      toast.success("If your account exists, an OTP has been sent.");
+      navigate(`/reset-password/otp?email=${encodeURIComponent(email.trim())}`);
     } else {
       toast.error(r.message || "Request failed");
     }
@@ -44,7 +37,7 @@ const ForgotPassword = () => {
             Reset your password
           </h1>
           <p className="mt-2 text-sm text-dark-50">
-            We'll send you a {mode === "otp" ? "one-time code" : "secure link"} to reset it.
+            We'll send you a one-time code to reset it.
           </p>
         </div>
 
@@ -52,31 +45,6 @@ const ForgotPassword = () => {
           onSubmit={handleSubmit}
           className="bg-dark-300 border border-dark-100 rounded-xl p-6 space-y-4"
         >
-          <div className="flex gap-1 p-0.5 bg-dark-200 rounded-lg">
-            <button
-              type="button"
-              onClick={() => setMode("link")}
-              className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                mode === "link"
-                  ? "bg-dark-100 text-surface-100"
-                  : "text-dark-50"
-              }`}
-            >
-              Email link
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("otp")}
-              className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                mode === "otp"
-                  ? "bg-dark-100 text-surface-100"
-                  : "text-dark-50"
-              }`}
-            >
-              One-time code
-            </button>
-          </div>
-
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-surface-200 mb-1.5">
               Email

@@ -47,6 +47,7 @@ class NoteUpdated implements ShouldBroadcastNow
             'note_id' => $this->note->id,
             'title' => $this->note->title,
             'content' => $this->note->content,
+            'has_password' => $this->note->password !== null,
             'updated_by' => $this->updatedBy,
             'updated_at' => $this->note->updated_at?->toIso8601String(),
         ];

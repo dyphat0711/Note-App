@@ -86,21 +86,27 @@ const Profile = () => {
     "U";
 
   return (
-    <div className="min-h-screen bg-dark-500 px-4 py-8">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-dark-500 px-4 py-6 sm:py-8">
+      <div className="max-w-2xl mx-auto animate-fade-in-up">
         <button
           onClick={() => navigate("/")}
-          className="flex items-center gap-1 text-sm text-dark-50 hover:text-surface-200 transition-colors mb-6"
+          className="flex items-center gap-1.5 text-sm text-dark-50 hover:text-surface-200 transition-colors mb-5"
         >
           <ArrowLeft size={14} /> Back to notes
         </button>
 
-        <h1 className="text-2xl font-display font-semibold text-surface-100 mb-6">
+        <h1 className="text-2xl font-display font-semibold text-surface-100 mb-5">
           Profile
         </h1>
 
-        <div className="bg-dark-300 border border-dark-100 rounded-xl p-6 mb-6">
-          <h2 className="text-sm font-medium text-surface-200 mb-4">Avatar</h2>
+        <div
+          className="rounded-2xl p-5 sm:p-6 mb-4"
+          style={{
+            background: "rgba(var(--dark-300), 0.8)",
+            border: "1px solid rgba(var(--dark-100), 0.5)",
+          }}
+        >
+          <h2 className="text-sm font-semibold text-surface-200 mb-4">Avatar</h2>
           <div className="flex items-center gap-4">
             <div className="relative">
               {user?.avatarUrl ? (
@@ -148,7 +154,11 @@ const Profile = () => {
 
         <form
           onSubmit={handleSubmit}
-          className="bg-dark-300 border border-dark-100 rounded-xl p-6 space-y-4"
+          className="rounded-2xl p-5 sm:p-6 space-y-4"
+          style={{
+            background: "rgba(var(--dark-300), 0.8)",
+            border: "1px solid rgba(var(--dark-100), 0.5)",
+          }}
         >
           <div>
             <label className="block text-sm font-medium text-surface-200 mb-1.5">

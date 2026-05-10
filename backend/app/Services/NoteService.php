@@ -48,6 +48,7 @@ class NoteService
             $note = $user->notes()->create([
                 'title' => $data['title'],
                 'content' => $data['content'] ?? null,
+                'color' => $data['color'] ?? null,
                 'is_pinned' => false,
             ]);
 
@@ -74,6 +75,10 @@ class NoteService
 
             if (array_key_exists('content', $data)) {
                 $updateData['content'] = $data['content'];
+            }
+
+            if (array_key_exists('color', $data)) {
+                $updateData['color'] = $data['color'];
             }
 
             if (! empty($updateData)) {

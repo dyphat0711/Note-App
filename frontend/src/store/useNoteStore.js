@@ -5,6 +5,7 @@ import {
   sharingAPI,
   attachmentAPI,
 } from "../api/services";
+import useAuthStore from "./useAuthStore";
 
 function transformLabel(l) {
   return {
@@ -21,6 +22,8 @@ function transformShare(s) {
     noteId: s.note_id,
     ownerId: s.owner_id,
     email: s.shared_with_email,
+    displayName: s.display_name || null,
+    avatarPath: s.avatar_path || null,
     permission: s.permission,
     sharedAt: s.shared_at || s.created_at,
   };
@@ -31,35 +34,43 @@ function transformAttachment(a) {
     id: a.id,
     noteId: a.note_id,
     name: a.original_name,
-    url: a.url || a.download_url,
+    url: a.url,
     downloadUrl: a.download_url,
     mime: a.mime_type,
     size: a.size,
   };
 }
 
+function extractArray(val) {
+  if (Array.isArray(val)) return val;
+  if (val && Array.isArray(val.data)) return val.data;
+  return [];
+}
+
 function transformNote(n) {
+  if (!n) return null;
   return {
     id: n.id,
     userId: n.user_id,
-    title: n.title,
-    content: n.content,
+    title: n.title || "Untitled",
+    content: n.content || "",
+    color: n.color || null,
     isPinned: Boolean(n.is_pinned),
-    pinnedAt: n.pinned_at,
+    pinnedAt: n.pinned_at || null,
     hasPassword: Boolean(n.has_password),
     isShared: Boolean(n.is_shared),
     isOwner: n.is_owner ?? true,
     sharePermission: n.share_permission ?? null,
     owner: n.owner || null,
-    labels: (n.labels || []).map(transformLabel),
-    shares: (n.shares || []).map(transformShare),
-    attachments: (n.attachments || []).map(transformAttachment),
-    createdAt: n.created_at,
-    updatedAt: n.updated_at,
+    labels: extractArray(n.labels).map(transformLabel),
+    shares: extractArray(n.shares).map(transformShare),
+    attachments: extractArray(n.attachments).map(transformAttachment),
+    createdAt: n.created_at || null,
+    updatedAt: n.updated_at || null,
   };
 }
 
-const initialPreferredView = (() => {
+const getInitialViewMode = () => {
   try {
     const v = localStorage.getItem("noteflow.viewMode");
     if (v === "grid" || v === "list") return v;
@@ -68,14 +79,14 @@ const initialPreferredView = (() => {
   }
   // Spec section 2.2: "By default, notes are displayed in a grid view layout."
   return "grid";
-})();
+};
 
 const useNoteStore = create((set, get) => ({
   notes: [],
   sharedNotes: [],
   labels: [],
   activeNoteId: null,
-  viewMode: initialPreferredView,
+  viewMode: getInitialViewMode(),
   searchQuery: "",
   selectedLabelIds: [], // multi-select label filter
   activeSection: "recents", // "recents" | "favorites" | "shared"
@@ -92,9 +103,9 @@ const useNoteStore = create((set, get) => ({
         sharingAPI.getSharedWithMe().catch(() => ({ data: { data: [] } })),
       ]);
       set({
-        notes: (notesRes.data.data || []).map(transformNote),
-        labels: (labelsRes.data.data || []).map(transformLabel),
-        sharedNotes: (sharedRes.data.data || []).map(transformNote),
+        notes: extractArray(notesRes.data).map(transformNote),
+        labels: extractArray(labelsRes.data).map(transformLabel),
+        sharedNotes: extractArray(sharedRes.data).map(transformNote),
         isLoading: false,
       });
     } catch {
@@ -103,16 +114,45 @@ const useNoteStore = create((set, get) => ({
   },
 
   // -------------------- Notes --------------------
+  getNextUntitledTitle: () => {
+    const existing = get().notes.filter((n) => n.title && n.title.startsWith("Untitled"));
+    if (existing.length === 0) return "Untitled 1";
+    const max = existing.reduce((maxVal, n) => {
+      const m = n.title.match(/^Untitled\s+(\d+)$/i);
+      if (m) return Math.max(maxVal, parseInt(m[1], 10));
+      if (n.title.trim().toLowerCase() === "untitled") return Math.max(maxVal, 1);
+      return maxVal;
+    }, 0);
+    return `Untitled ${max + 1}`;
+  },
+
   setActiveNote: (id) => set({ activeNoteId: id }),
 
   createNote: async () => {
+    const defaultTitle = get().getNextUntitledTitle();
     const tempId = `temp-${Date.now()}`;
     const now = new Date().toISOString();
+    
+    let defaultColor = null;
+    try {
+      const user = useAuthStore.getState().user;
+      let prefColor = user?.preferences?.default_note_color;
+      if (prefColor === "random") {
+        const NOTE_COLOR_PRESETS = ["#fef3c7", "#fee2e2", "#dbeafe", "#dcfce7", "#fae8ff", "#fff7ed", "#f1f5f9"];
+        defaultColor = NOTE_COLOR_PRESETS[Math.floor(Math.random() * NOTE_COLOR_PRESETS.length)];
+      } else if (prefColor && prefColor !== "random") {
+        defaultColor = prefColor;
+      }
+    } catch {
+      // ignore
+    }
+
     const optimisticNote = {
       id: tempId,
       userId: null,
-      title: "Untitled",
+      title: defaultTitle,
       content: "",
+      color: defaultColor,
       isPinned: false,
       pinnedAt: null,
       hasPassword: false,
@@ -131,7 +171,9 @@ const useNoteStore = create((set, get) => ({
       activeNoteId: tempId,
     }));
     try {
-      const { data } = await noteAPI.create({ title: "Untitled", content: "" });
+      const payload = { title: defaultTitle, content: "" };
+      if (defaultColor) payload.color = defaultColor;
+      const { data } = await noteAPI.create(payload);
       const realNote = transformNote(data.data);
       set((s) => ({
         notes: s.notes.map((n) => (n.id === tempId ? realNote : n)),
@@ -168,10 +210,31 @@ const useNoteStore = create((set, get) => ({
         const { data } = await noteAPI.update(id, payload);
         const fresh = transformNote(data.data);
         set((s) => ({
-          notes: s.notes.map((n) => (n.id === id ? { ...fresh, content: n.content ?? fresh.content } : n)),
-          sharedNotes: s.sharedNotes.map((n) => (n.id === id ? fresh : n)),
+          notes: s.notes.map((n) => {
+            if (n.id !== id) return n;
+            // Preserve local attachments if there are more than what the server
+            // returned (upload may have committed after the update response).
+            const mergedAttachments =
+              (n.attachments || []).length > (fresh.attachments || []).length
+                ? n.attachments
+                : fresh.attachments;
+            return {
+              ...fresh,
+              content: n.content ?? fresh.content,
+              attachments: mergedAttachments,
+            };
+          }),
+          sharedNotes: s.sharedNotes.map((n) => {
+            if (n.id !== id) return n;
+            const mergedAttachments =
+              (n.attachments || []).length > (fresh.attachments || []).length
+                ? n.attachments
+                : fresh.attachments;
+            return { ...fresh, content: n.content ?? fresh.content, attachments: mergedAttachments };
+          }),
         }));
       }
+
     } catch {
       /* keep optimistic state; UI shows latest input */
     }
@@ -182,10 +245,19 @@ const useNoteStore = create((set, get) => ({
    * Merge into the local state without re-broadcasting.
    */
   applyRemoteNoteUpdate: (id, patch) => {
-    set((s) => ({
-      notes: s.notes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
-      sharedNotes: s.sharedNotes.map((n) => (n.id === id ? { ...n, ...patch } : n)),
-    }));
+    set((s) => {
+      const next = { ...s };
+      next.notes = s.notes.map((n) => (n.id === id ? { ...n, ...patch } : n));
+      next.sharedNotes = s.sharedNotes.map((n) => (n.id === id ? { ...n, ...patch } : n));
+      // If the note was remotely locked, remove it from the unlocked set so the
+      // UnlockOverlay is shown again immediately.
+      if (patch.hasPassword === true) {
+        const unlocked = new Set(s.unlockedNoteIds);
+        unlocked.delete(id);
+        next.unlockedNoteIds = unlocked;
+      }
+      return next;
+    });
   },
 
   deleteNote: async (id) => {
@@ -225,7 +297,16 @@ const useNoteStore = create((set, get) => ({
     const { data } = await noteAPI.setPassword(id, payload);
     const fresh = transformNote(data.data);
     set((s) => ({
-      notes: s.notes.map((n) => (n.id === id ? fresh : n)),
+      // Preserve existing content: when a password is set/changed, the server
+      // returns content=null (hidden). We must NOT overwrite the in-memory
+      // content or the user's current editing session will be lost.
+      notes: s.notes.map((n) => {
+        if (n.id !== id) return n;
+        return {
+          ...fresh,
+          content: payload.action === "disable" ? fresh.content : (n.content ?? fresh.content),
+        };
+      }),
       unlockedNoteIds: payload.action === "disable"
         ? new Set([...s.unlockedNoteIds].filter((x) => x !== id))
         : s.unlockedNoteIds,
@@ -239,7 +320,11 @@ const useNoteStore = create((set, get) => ({
       const next = new Set(s.unlockedNoteIds);
       next.add(id);
       return {
+        // Update both own notes and shared notes so recipients can unlock too
         notes: s.notes.map((n) =>
+          n.id === id ? { ...n, content: data.content } : n,
+        ),
+        sharedNotes: s.sharedNotes.map((n) =>
           n.id === id ? { ...n, content: data.content } : n,
         ),
         unlockedNoteIds: next,
@@ -351,9 +436,9 @@ const useNoteStore = create((set, get) => ({
   refreshSharedWithMe: async () => {
     try {
       const { data } = await sharingAPI.getSharedWithMe();
-      set({ sharedNotes: (data.data || []).map(transformNote) });
-    } catch {
-      /* silent */
+      set({ sharedNotes: extractArray(data).map(transformNote) });
+    } catch (e) {
+      console.error("Failed to refresh shared notes:", e);
     }
   },
 

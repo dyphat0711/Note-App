@@ -34,9 +34,7 @@ class NoteController extends Controller
 
         $notes = $this->noteService->getUserNotes($user, $labelIds);
 
-        return response()->json([
-            'data' => NoteResource::collection($notes),
-        ]);
+        return NoteResource::collection($notes)->response();
     }
 
     /**
@@ -123,6 +121,13 @@ class NoteController extends Controller
                 : 'Note password changed successfully';
         }
 
+        // Broadcast to shared users so their clients update the lock state immediately.
+        // This prevents a race where a shared user still has the content cached while
+        // the owner has since locked the note.
+        if (class_exists(\App\Events\NoteUpdated::class) && $note->shares()->exists()) {
+            event(new \App\Events\NoteUpdated($note, (int) $request->user()->id));
+        }
+
         return response()->json([
             'message' => $message,
             'data' => new NoteResource($note),
@@ -181,9 +186,7 @@ class NoteController extends Controller
 
         $notes = $this->noteService->searchNotes($user, $request->input('q'));
 
-        return response()->json([
-            'data' => NoteResource::collection($notes),
-        ]);
+        return NoteResource::collection($notes)->response();
     }
 
     /**

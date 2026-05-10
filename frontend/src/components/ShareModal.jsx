@@ -31,6 +31,14 @@ const ShareModal = React.memo(({ isOpen, note, onClose, presenceUsers = [], typi
     }
   }, [isOpen]);
 
+  const presenceMap = useMemo(() => {
+    const map = new Map();
+    if (isOpen && presenceUsers) {
+      presenceUsers.forEach((u) => map.set(u.email?.toLowerCase?.() || u.id, u));
+    }
+    return map;
+  }, [presenceUsers, isOpen]);
+
   if (!isOpen) return null;
 
   const shares = note?.shares || [];
@@ -86,11 +94,6 @@ const ShareModal = React.memo(({ isOpen, note, onClose, presenceUsers = [], typi
     }
   }
 
-  const presenceMap = useMemo(() => {
-    const map = new Map();
-    presenceUsers.forEach((u) => map.set(u.email?.toLowerCase?.() || u.id, u));
-    return map;
-  }, [presenceUsers]);
 
   return (
     <div
@@ -195,17 +198,31 @@ const ShareModal = React.memo(({ isOpen, note, onClose, presenceUsers = [], typi
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="relative">
-                        <span className="w-8 h-8 rounded-full bg-dark-100 flex items-center justify-center text-sm font-medium text-surface-200">
-                          {share.email?.charAt(0).toUpperCase() || "?"}
-                        </span>
+                        {share.avatarPath ? (
+                          <img
+                            src={`/storage/${share.avatarPath}`}
+                            alt={share.displayName || share.email}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="w-8 h-8 rounded-full bg-dark-100 flex items-center justify-center text-sm font-medium text-surface-200">
+                            {(share.displayName || share.email)?.charAt(0).toUpperCase() || "?"}
+                          </span>
+                        )}
                         {presence && (
                           <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-green-400 border-2 border-dark-300" />
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm text-surface-200 truncate">
+                        {share.displayName && (
+                          <p className="text-sm text-surface-200 truncate font-medium">
+                            {share.displayName}
+                          </p>
+                        )}
+                        <p className={`text-sm truncate ${share.displayName ? "text-dark-50 text-xs" : "text-surface-200"}`}>
                           {share.email}
                         </p>
+
                         <div className="flex items-center gap-1.5 mt-0.5">
                           {share.permission === "edit" ? (
                             <Edit3 size={11} className="text-blue-400" />

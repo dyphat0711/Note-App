@@ -95,9 +95,8 @@ class AttachmentController extends Controller
             abort(404, 'File not found.');
         }
 
-        return Storage::disk('public')->download(
-            $attachment->stored_path,
-            $attachment->original_name
+        return Storage::disk('public')->response(
+            $attachment->stored_path
         );
     }
 }

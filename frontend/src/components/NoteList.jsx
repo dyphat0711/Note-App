@@ -13,28 +13,35 @@ import { useDebounce } from "../hooks/useDebounce";
 import useNoteStore from "../store/useNoteStore";
 import { noteAPI } from "../api/services";
 
+function extractArray(val) {
+  if (Array.isArray(val)) return val;
+  if (val && Array.isArray(val.data)) return val.data;
+  return [];
+}
+
 function transformNoteFromApi(n) {
+  if (!n) return null;
   return {
     id: n.id,
     userId: n.user_id,
-    title: n.title,
-    content: n.content,
+    title: n.title || "Untitled",
+    content: n.content || "",
     isPinned: Boolean(n.is_pinned),
-    pinnedAt: n.pinned_at,
+    pinnedAt: n.pinned_at || null,
     hasPassword: Boolean(n.has_password),
     isShared: Boolean(n.is_shared),
     isOwner: n.is_owner ?? true,
     sharePermission: n.share_permission ?? null,
     owner: n.owner || null,
-    labels: (n.labels || []).map((l) => ({
+    labels: extractArray(n.labels).map((l) => ({
       id: l.id,
       name: l.name,
       color: l.color || "#3b82f6",
     })),
-    shares: n.shares || [],
-    attachments: n.attachments || [],
-    createdAt: n.created_at,
-    updatedAt: n.updated_at,
+    shares: extractArray(n.shares),
+    attachments: extractArray(n.attachments),
+    createdAt: n.created_at || null,
+    updatedAt: n.updated_at || null,
   };
 }
 
@@ -52,7 +59,7 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
   const togglePin = useNoteStore((s) => s.togglePin);
 
   const [localSearch, setLocalSearch] = useState(searchQuery);
-  const debouncedSearch = useDebounce(localSearch, 300); // spec: 300ms live search
+  const debouncedSearch = useDebounce(localSearch, 300);
   const [serverSearchResults, setServerSearchResults] = useState(null);
   const [searching, setSearching] = useState(false);
 
@@ -60,14 +67,11 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
     setSearchQuery(debouncedSearch);
   }, [debouncedSearch, setSearchQuery]);
 
-  // Server-side search when query is non-empty (spec #17: search title + content).
   useEffect(() => {
     let cancelled = false;
     if (!debouncedSearch.trim()) {
       setServerSearchResults(null);
-      return () => {
-        cancelled = true;
-      };
+      return () => { cancelled = true; };
     }
     setSearching(true);
     noteAPI
@@ -83,19 +87,17 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
       .finally(() => {
         if (!cancelled) setSearching(false);
       });
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [debouncedSearch]);
 
   const sourceNotes = useMemo(() => {
-    if (activeSection === "shared") return sharedNotes;
-    if (debouncedSearch.trim() && serverSearchResults) return serverSearchResults;
-    return notes;
+    if (activeSection === "shared") return Array.isArray(sharedNotes) ? sharedNotes : [];
+    if (debouncedSearch.trim() && serverSearchResults) return Array.isArray(serverSearchResults) ? serverSearchResults : [];
+    return Array.isArray(notes) ? notes : [];
   }, [activeSection, sharedNotes, debouncedSearch, serverSearchResults, notes]);
 
   const filteredNotes = useMemo(() => {
-    let filtered = [...sourceNotes];
+    let filtered = [...sourceNotes].filter(n => n !== null && n !== undefined);
 
     if (activeSection === "favorites") {
       filtered = filtered.filter((n) => n.isPinned);
@@ -108,7 +110,6 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
     }
 
     filtered.sort((a, b) => {
-      // Spec #16: pinned first; among pinned by pinnedAt desc; else by updatedAt desc.
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
       if (a.isPinned && b.isPinned) {
@@ -136,7 +137,9 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "";
-    return new Date(dateStr).toLocaleDateString("en-GB", {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-GB", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -175,18 +178,29 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
 
   return (
     <div
-      className={`flex-shrink-0 bg-dark-400 border-r border-dark-300 flex flex-col h-full ${isGrid ? "w-[420px]" : "w-80"
-        }`}
+      className={`flex-shrink-0 flex flex-col h-full note-list-panel ${
+        isGrid ? "sm:w-[380px] md:w-[420px]" : "sm:w-72 md:w-80"
+      }`}
+      style={{
+        background: "rgb(var(--dark-400))",
+        borderRight: "1px solid rgba(var(--dark-300), 0.8)",
+      }}
     >
       {/* Header */}
-      <div className="px-4 py-4 border-b border-dark-300">
+      <div
+        className="px-4 py-3.5"
+        style={{ borderBottom: "1px solid rgba(var(--dark-300), 0.8)" }}
+      >
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-surface-100 truncate">
+          <h2 className="text-base font-semibold text-surface-100 truncate">
             {sectionTitle}
           </h2>
           {activeSection === "shared" && (
-            <span className="flex items-center gap-1 text-xs text-dark-50">
-              <Users size={12} />
+            <span
+              className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full"
+              style={{ background: "rgba(var(--dark-200), 0.8)", color: "rgb(var(--dark-50))" }}
+            >
+              <Users size={11} />
               {sharedNotes.length}
             </span>
           )}
@@ -194,7 +208,7 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
 
         <div className="relative mb-3">
           <Search
-            size={16}
+            size={14}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-dark-50 pointer-events-none"
           />
           <input
@@ -202,7 +216,11 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             placeholder="Search notes..."
-            className="w-full pl-9 pr-3 py-2 bg-dark-200 border border-dark-100 rounded-lg text-sm text-surface-200 placeholder-dark-50 focus:outline-none focus:ring-1 focus:ring-accent-500 focus:border-transparent transition-all duration-150"
+            className="w-full pl-9 pr-3 py-2 text-sm text-surface-200 placeholder-dark-50 focus:outline-none focus:ring-1 focus:ring-accent-500 transition-all duration-200 rounded-xl"
+            style={{
+              background: "rgba(var(--dark-200), 0.9)",
+              border: "1px solid rgba(var(--dark-100), 0.6)",
+            }}
             aria-label="Search notes"
           />
           {searching && (
@@ -210,47 +228,48 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
           )}
         </div>
 
-        <div className="flex items-center gap-1 bg-dark-200 rounded-lg p-0.5">
-          <button
-            onClick={() => setViewMode("grid")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${viewMode === "grid"
-                ? "bg-dark-100 text-surface-100"
-                : "text-dark-50 hover:text-surface-200"
+        <div
+          className="flex items-center gap-0.5 p-0.5 rounded-xl"
+          style={{ background: "rgba(var(--dark-200), 0.8)" }}
+        >
+          {[
+            { mode: "grid", icon: Grid3X3, label: "Grid" },
+            { mode: "list", icon: List,    label: "List" },
+          ].map(({ mode, icon: Icon, label }) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-[10px] text-xs font-medium transition-all duration-200 ${
+                viewMode === mode
+                  ? "text-surface-100 shadow-sm"
+                  : "text-dark-50 hover:text-surface-200"
               }`}
-            aria-label="Grid view"
-            aria-pressed={viewMode === "grid"}
-          >
-            <Grid3X3 size={14} />
-            Grid
-          </button>
-          <button
-            onClick={() => setViewMode("list")}
-            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${viewMode === "list"
-                ? "bg-dark-100 text-surface-100"
-                : "text-dark-50 hover:text-surface-200"
-              }`}
-            aria-label="List view"
-            aria-pressed={viewMode === "list"}
-          >
-            <List size={14} />
-            List
-          </button>
+              style={viewMode === mode ? { background: "rgb(var(--dark-100))" } : {}}
+              aria-label={`${label} view`}
+              aria-pressed={viewMode === mode}
+            >
+              <Icon size={13} />
+              {label}
+            </button>
+          ))}
         </div>
       </div>
 
       {/* Note List */}
       <div
-        className={`flex-1 overflow-y-auto p-3 ${isGrid ? "grid grid-cols-2 gap-3 auto-rows-min" : "space-y-2"
-          }`}
+        className={`flex-1 overflow-y-auto p-3 ${
+          isGrid ? "grid grid-cols-2 gap-2.5 auto-rows-min" : "space-y-1.5"
+        }`}
         role="list"
       >
         {filteredNotes.length === 0 ? (
           <div
-            className={`flex flex-col items-center justify-center py-12 text-dark-50 ${isGrid ? "col-span-2" : ""
-              }`}
+            className={`flex flex-col items-center justify-center py-14 text-dark-50 animate-fade-in-up ${
+              isGrid ? "col-span-2" : ""
+            }`}
           >
-            <FileText size={32} className="mb-3 opacity-50" />
-            <p className="text-sm">No notes found</p>
+            <FileText size={28} className="mb-3 opacity-30" />
+            <p className="text-sm text-dark-50/70">No notes found</p>
           </div>
         ) : (
           filteredNotes.map((note, idx) => (
@@ -264,7 +283,7 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
               onDelete={handleDeleteClick}
               formatDate={formatDate}
               getExcerpt={getExcerpt}
-              paletteIndex={idx % CARD_PALETTE.length}
+              index={idx}
             />
           ))
         )}
@@ -273,14 +292,6 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
   );
 });
 
-const CARD_PALETTE = [
-  "bg-sky-50 border-sky-100",
-  "bg-rose-50 border-rose-100",
-  "bg-amber-50 border-amber-100",
-  "bg-indigo-50 border-indigo-100",
-  "bg-emerald-50 border-emerald-100",
-  "bg-violet-50 border-violet-100",
-];
 
 const NoteCard = React.memo(
   ({
@@ -292,59 +303,74 @@ const NoteCard = React.memo(
     onDelete,
     formatDate,
     getExcerpt,
-    paletteIndex,
+    index = 0,
   }) => {
-    const paletteClass = CARD_PALETTE[paletteIndex];
+    const hasCustomColor = Boolean(note.color);
+    const customStyle = hasCustomColor
+      ? { backgroundColor: note.color, borderColor: `${note.color}cc` }
+      : {};
+
+    const titleStyle   = hasCustomColor ? { color: "#1e293b" } : undefined;
+    const metaStyle    = hasCustomColor ? { color: "#64748b" } : undefined;
+    const excerptStyle = hasCustomColor ? { color: "#475569" } : undefined;
+
     return (
       <div
         onClick={() => onOpen(note.id)}
-        className={`group relative rounded-xl cursor-pointer transition-all duration-150 border shadow-dark ${isGrid
-            ? `${paletteClass} p-4 hover:shadow-dark-lg flex flex-col min-h-[140px]`
-            : `${paletteClass} p-3 ${isActive
-              ? "ring-2 ring-accent-400 shadow-dark-lg"
-              : "hover:shadow-dark-lg"
-            }`
-          }`}
+        className={`note-list-item group relative rounded-xl cursor-pointer border note-card-hover animate-fade-in-up ${
+          isGrid
+            ? "p-4 flex flex-col min-h-[136px]"
+            : `p-3 ${isActive ? "ring-1.5 ring-accent-400" : ""}`
+        } ${hasCustomColor ? "" : ""}`}
+        style={{
+          ...customStyle,
+          ...(!hasCustomColor ? {
+            background: isActive
+              ? "rgba(var(--dark-100), 0.9)"
+              : "rgba(var(--dark-200), 0.85)",
+            borderColor: isActive
+              ? "rgba(99,102,241,0.5)"
+              : "rgba(var(--dark-100), 0.6)",
+            boxShadow: isActive ? "0 0 0 1px rgba(99,102,241,0.4)" : undefined,
+          } : {}),
+          animationDelay: `${Math.min(index * 40, 200)}ms`,
+        }}
         role="listitem"
         tabIndex={0}
         onKeyDown={(e) => e.key === "Enter" && onOpen(note.id)}
       >
         <div className={`flex ${isGrid ? "flex-col flex-1" : "items-start gap-3"}`}>
           <div className="flex-1 min-w-0">
+
+            {/* Title row */}
             <div className="flex items-center gap-2 mb-1">
               <h3
-                className={`font-semibold text-surface-100 truncate flex-1 ${isGrid ? "text-sm" : "text-sm"
-                  }`}
+                className={`font-semibold text-sm truncate flex-1 ${!hasCustomColor ? "text-surface-100" : ""}`}
+                style={titleStyle}
               >
                 {note.title || "Untitled"}
               </h3>
               <div className="flex items-center gap-1 flex-shrink-0">
                 {note.isPinned && (
-                  <Pin
-                    size={12}
-                    className="text-accent-500"
-                    aria-label="Pinned"
-                  />
+                  <Pin size={12} style={hasCustomColor ? { color: "#3b82f6" } : undefined}
+                    className={!hasCustomColor ? "text-accent-500" : ""}
+                    aria-label="Pinned" />
                 )}
                 {note.hasPassword && (
-                  <Lock
-                    size={12}
-                    className="text-amber-500"
-                    aria-label="Password protected"
-                  />
+                  <Lock size={12} className="text-amber-500" aria-label="Password protected" />
                 )}
                 {note.isShared && (
-                  <Users
-                    size={12}
-                    className="text-blue-500"
-                    aria-label="Shared"
-                  />
+                  <Users size={12} className="text-blue-500" aria-label="Shared" />
                 )}
               </div>
             </div>
 
+            {/* Date row */}
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="text-xs text-slate-500">
+              <span
+                className={`text-xs ${!hasCustomColor ? "note-card-date" : ""}`}
+                style={metaStyle}
+              >
                 {formatDate(note.updatedAt)}
               </span>
               {!note.isOwner && note.owner && (
@@ -359,26 +385,32 @@ const NoteCard = React.memo(
               )}
             </div>
 
+            {/* Excerpt */}
             {isGrid ? (
-              <p className="text-xs text-slate-600 line-clamp-4 mb-2">
-                {note.hasPassword
-                  ? "🔒 Locked"
-                  : getExcerpt(note.content, 160)}
+              <p
+                className={`text-xs line-clamp-4 mb-2 ${!hasCustomColor ? "note-card-excerpt" : ""}`}
+                style={excerptStyle}
+              >
+                {note.hasPassword ? "🔒 Locked" : getExcerpt(note.content, 160)}
               </p>
             ) : (
-              <p className="text-xs text-slate-600 truncate">
+              <p
+                className={`text-xs truncate ${!hasCustomColor ? "note-card-excerpt" : ""}`}
+                style={excerptStyle}
+              >
                 {note.hasPassword ? "🔒 Locked" : getExcerpt(note.content)}
               </p>
             )}
 
-            {(note.labels || []).length > 0 && (
+            {/* Labels */}
+            {(Array.isArray(note.labels) ? note.labels : []).length > 0 && (
               <div className="flex flex-wrap gap-1 mt-auto pt-1">
-                {note.labels.slice(0, 3).map((label) => (
+                {(Array.isArray(note.labels) ? note.labels : []).slice(0, 3).map((label) => (
                   <span
                     key={label.id}
                     className="px-2 py-0.5 rounded text-xs font-medium"
                     style={{
-                      backgroundColor: `${label.color}20`,
+                      backgroundColor: `${label.color}25`,
                       color: label.color,
                     }}
                   >
@@ -386,7 +418,10 @@ const NoteCard = React.memo(
                   </span>
                 ))}
                 {note.labels.length > 3 && (
-                  <span className="px-2 py-0.5 text-xs text-slate-500">
+                  <span
+                    className={`px-2 py-0.5 text-xs ${!hasCustomColor ? "note-card-date" : ""}`}
+                    style={metaStyle}
+                  >
                     +{note.labels.length - 3}
                   </span>
                 )}
@@ -394,21 +429,25 @@ const NoteCard = React.memo(
             )}
           </div>
 
+          {/* Action buttons (visible on hover) */}
           {note.isOwner && (
             <div className="hidden group-hover:flex items-center gap-1 flex-shrink-0">
               <button
                 onClick={(e) => onTogglePin(e, note.id)}
-                className={`p-1.5 rounded-md transition-colors ${note.isPinned
-                    ? "text-accent-600 hover:bg-white/60"
-                    : "text-slate-500 hover:text-surface-200 hover:bg-white/60"
-                  }`}
+                className="p-1.5 rounded-md transition-colors hover:bg-black/10"
+                style={{
+                  color: note.isPinned
+                    ? "#3b82f6"
+                    : (hasCustomColor ? "#64748b" : undefined),
+                }}
                 aria-label={note.isPinned ? "Unpin" : "Pin"}
               >
                 <Pin size={14} />
               </button>
               <button
                 onClick={(e) => onDelete(e, note)}
-                className="p-1.5 rounded-md text-slate-500 hover:text-danger-600 hover:bg-white/60 transition-colors"
+                className="p-1.5 rounded-md transition-colors hover:text-danger-500 hover:bg-black/10"
+                style={hasCustomColor ? { color: "#64748b" } : undefined}
                 aria-label="Delete"
               >
                 <Trash2 size={14} />

@@ -85,9 +85,7 @@ class NoteSharingController extends Controller
 
         $notes = $this->sharingService->getNotesSharedWithUser($user);
 
-        return response()->json([
-            'data' => NoteResource::collection($notes),
-        ]);
+        return NoteResource::collection($notes)->response();
     }
 
     /**

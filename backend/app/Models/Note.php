@@ -35,6 +35,7 @@ class Note extends Model
         'user_id',
         'title',
         'content',
+        'color',
         'password',
         'is_pinned',
         'pinned_at',

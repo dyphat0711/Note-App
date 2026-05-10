@@ -26,9 +26,7 @@ class LabelController extends Controller
             ->withCount('notes')
             ->get();
 
-        return response()->json([
-            'data' => LabelResource::collection($labels),
-        ]);
+        return LabelResource::collection($labels)->response();
     }
 
     /**

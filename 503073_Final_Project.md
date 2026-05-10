@@ -1,9 +1,4 @@
-# 503073 – WEB PROGRAMMING & APPLICATIONS
-## FINAL PROJECT – SEMESTER II/2024-2025
-
-*Last updated on 02/01/2025*
-
----
+## GUILDELINE FOR NOTE APPLICATION
 
 > **Mandatory Compliance with Red-Highlighted Content**
 >
@@ -69,23 +64,23 @@ The descriptions provided above are not exhaustive or definitive. Students must 
 
 #### Sharing Notes
 
-| Approach | Description |
-|----------|-------------|
-| **Subpar** | Allowing users to share notes simply by entering an email address. If the email exists in the system, the recipient sees the shared note when they log in. |
+| Approach   | Description                                                                                                                                                                                                                                                                                |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Subpar** | Allowing users to share notes simply by entering an email address. If the email exists in the system, the recipient sees the shared note when they log in.                                                                                                                                 |
 | **Better** | Implementing a mechanism to validate the entered email, ensuring it belongs to a registered user. The recipient should receive an email notification about the shared note. At a minimum, a notification should be prominently displayed in the recipient's account upon their next login. |
 
 #### Password-Protected Notes
 
-| Approach | Description |
-|----------|-------------|
-| **Subpar** | Creating a password by allowing users to enter the desired password once. When changing the password, the user enters the new password directly. Disabling protection requires only selecting an option from the menu. |
+| Approach   | Description                                                                                                                                                                                                                                                                                        |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Subpar** | Creating a password by allowing users to enter the desired password once. When changing the password, the user enters the new password directly. Disabling protection requires only selecting an option from the menu.                                                                             |
 | **Better** | Requiring users to enter the password twice when creating or updating it. When changing the password, the user must first provide the current password and then input the new password twice. Disabling password protection should require re-entering the current password as final confirmation. |
 
 #### Shared Notes Details
 
-| Approach | Description |
-|----------|-------------|
-| **Subpar** | Simply allowing recipients to view the content without additional details. The note owner has no visibility into who the note has been shared with. |
+| Approach   | Description                                                                                                                                                                                                                                                                                                                          |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Subpar** | Simply allowing recipients to view the content without additional details. The note owner has no visibility into who the note has been shared with.                                                                                                                                                                                  |
 | **Better** | Providing a detailed overview for the note owner. When the owner clicks on any shared note, they should see its sharing status and a list of all recipients, including each recipient's email address and permissions (read-only or editable). The owner should be able to modify or revoke sharing permissions from this interface. |
 
 ---
@@ -103,106 +98,48 @@ The descriptions provided above are not exhaustive or definitive. Students must 
 
 ### Account Management — 2.0 pts
 
-| # | Criteria | Full Points | Level 1 (0 pt) | Level 2 (25–75%) | Level 3 (Full) |
-|---|----------|:-----------:|----------------|------------------|----------------|
-| 1 | User registration | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 2 | Account activation | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 3 | User login and logout | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 4 | Password reset | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 5 | View profile and avatar | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 6 | Edit profile and avatar | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 7 | Change password | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 8 | User preferences | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| #   | Criteria                | Full Points | Level 1 (0 pt)                    | Level 2 (25–75%)                                         | Level 3 (Full)                                            |
+| --- | ----------------------- | :---------: | --------------------------------- | -------------------------------------------------------- | --------------------------------------------------------- |
+| 1   | User registration       |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 2   | Account activation      |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 3   | User login and logout   |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 4   | Password reset          |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 5   | View profile and avatar |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 6   | Edit profile and avatar |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 7   | Change password         |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 8   | User preferences        |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
 
 ### Simple Note Management — 4.0 pts
 
-| # | Criteria | Full Points | Level 1 (0 pt) | Level 2 (25–75%) | Level 3 (Full) |
-|---|----------|:-----------:|----------------|------------------|----------------|
-| 9 | Display notes in list view | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 10 | Display notes in grid view | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 11 | Create notes | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 12 | Update notes | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 13 | Delete notes | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 14 | Auto-save notes | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 15 | Attach images to notes | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 16 | Pin notes to top | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 17 | Search notes | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 18 | Label management (listing, add, edit, delete) | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 19 | Attach labels to notes | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 20 | Filter notes based on labels | 0.25 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| #   | Criteria                                      | Full Points | Level 1 (0 pt)                    | Level 2 (25–75%)                                         | Level 3 (Full)                                            |
+| --- | --------------------------------------------- | :---------: | --------------------------------- | -------------------------------------------------------- | --------------------------------------------------------- |
+| 9   | Display notes in list view                    |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 10  | Display notes in grid view                    |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 11  | Create notes                                  |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 12  | Update notes                                  |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 13  | Delete notes                                  |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 14  | Auto-save notes                               |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 15  | Attach images to notes                        |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 16  | Pin notes to top                              |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 17  | Search notes                                  |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 18  | Label management (listing, add, edit, delete) |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 19  | Attach labels to notes                        |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 20  | Filter notes based on labels                  |    0.25     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
 
 ### Advanced Note Management — 2.0 pts
 
-| # | Criteria | Full Points | Level 1 (0 pt) | Level 2 (25–75%) | Level 3 (Full) |
-|---|----------|:-----------:|----------------|------------------|----------------|
-| 21 | Enable and disable password on notes | 0.5 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 22 | Password protection, change password on notes | 0.5 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 23 | Share and receive notes | 0.5 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
-| 24 | Collaboration and real-time modification | 0.5 | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| #   | Criteria                                      | Full Points | Level 1 (0 pt)                    | Level 2 (25–75%)                                         | Level 3 (Full)                                            |
+| --- | --------------------------------------------- | :---------: | --------------------------------- | -------------------------------------------------------- | --------------------------------------------------------- |
+| 21  | Enable and disable password on notes          |     0.5     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 22  | Password protection, change password on notes |     0.5     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 23  | Share and receive notes                       |     0.5     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
+| 24  | Collaboration and real-time modification      |     0.5     | Not available or completely wrong | Implemented but not working properly or has serious bugs | Correctly implemented, no bugs or only insignificant bugs |
 
 ### Other Requirements — 2.0 pts
 
-| # | Criteria | Full Points | Level 1 (0 pt) | Level 2 (25–75%) | Level 3 (Full) |
-|---|----------|:-----------:|----------------|------------------|----------------|
-| 25 | UI and UX | 0.5 | Poor design, inconsistent UI, no feedback, no accessibility | Basic styling, inconsistent UX, limited feedback, partial accessibility | Polished UI, intuitive UX, comprehensive feedback, fully accessible |
-| 26 | Responsive Design | 0.5 | No adaptation to screen sizes, misaligned elements, no media queries | Partially responsive, limited media queries, layout issues on some devices | Fully responsive, optimized layouts, proper scaling, smooth transitions |
-| 27 | Offline Capabilities | 0.5 | No offline functionality, no caching, no service worker | Limited offline access, partial caching, unreliable service workers | Robust offline access, effective caching, proper offline data synchronization |
-| 28 | Online Deployment | 0.5 | Not deployed, no hosting or deployment plan | Online but unstable, poor performance, lacks HTTPS | Fully deployed, secure (HTTPS), optimized for performance, scalable, high uptime |
-
----
-
-## V. Output Requirements
-
-### Required Submission Components
-
-1. **`Rubrik.docx`** — Self-assessment file listing all 28 features. Include the public URL to the web application and any required username/password for login. (Provided by the instructor at submission time.)
-
-2. **`source/` folder** — Contains all source code:
-   - *Without Docker Compose:* Include the entire source code (frontend, backend) and relevant database files. The project must be "cleaned" to remove unnecessary content before submission.
-   - *With Docker Compose:* Include all source code, the `docker-compose` file, and instructions for running the application (e.g., where to run `npm install` and `docker-compose up`). Ensure thorough testing before submission.
-
-3. **`demo.mp4`** — Demo video requirements:
-   - Must include participation of **all team members** introducing the product.
-   - Provide a brief overview of the technologies and architecture.
-   - Sequentially demonstrate **each of the 28 features** (undemonstrated features are considered not implemented).
-   - Minimum resolution: **1080p**, with clear audio.
-   - If the file is too large, upload to YouTube and include the link.
-
-4. **`readme.txt`** — Include:
-   - Project building and running instructions
-   - URL + server login information (if applicable)
-   - Usernames/passwords for pre-loaded test accounts
-   - Any relevant notes on building, running, and using the application
-   - Clear statement of any optional/extra-credit features implemented
-
-### Submission Format
-
-Organize all contents into a folder named:
-```
-id1_fullname1_id2_fullname2
-```
-Compress as a ZIP file with the same name:
-```
-id1_fullname1_id2_fullname2.zip
-```
-Submit via the online learning system only. **Submissions via email are not accepted.**
-
-### Important Policies
-
-- **Missing components:** Failure to submit source code, video, or `Rubrik.docx` results in a score of **0** for the entire team.
-- **Unrelated project:** Submitting an unrelated project results in a score of **0**.
-- **Academic integrity:** Groups are prohibited from sharing code with each other or obtaining source code from the internet. Groups with similar source code (verified by specialized software) will receive a **0** for all members.
-- **Essay vs. Final Project:** These are independent assessments. All team members must participate in both.
-
-### Deductions
-
-| Situation | Deduction |
-|-----------|-----------|
-| Late submission (per day, 1 second late = 1 day late) | −1.0 pt/day |
-| Complex project configuration without clear run instructions | −2.0 pts |
-| Project not cleaned before submission | −0.5 pts |
-| Missing grading info (usernames/passwords, incorrect naming, missing content) | −1.0 pt |
-
----
-
-*For questions or concerns, contact the instructor directly or via email at **maivanmanh@tdtu.edu.vn**.*
+| #   | Criteria             | Full Points | Level 1 (0 pt)                                                       | Level 2 (25–75%)                                                           | Level 3 (Full)                                                                   |
+| --- | -------------------- | :---------: | -------------------------------------------------------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| 25  | UI and UX            |     0.5     | Poor design, inconsistent UI, no feedback, no accessibility          | Basic styling, inconsistent UX, limited feedback, partial accessibility    | Polished UI, intuitive UX, comprehensive feedback, fully accessible              |
+| 26  | Responsive Design    |     0.5     | No adaptation to screen sizes, misaligned elements, no media queries | Partially responsive, limited media queries, layout issues on some devices | Fully responsive, optimized layouts, proper scaling, smooth transitions          |
+| 27  | Offline Capabilities |     0.5     | No offline functionality, no caching, no service worker              | Limited offline access, partial caching, unreliable service workers        | Robust offline access, effective caching, proper offline data synchronization    |
+| 28  | Online Deployment    |     0.5     | Not deployed, no hosting or deployment plan                          | Online but unstable, poor performance, lacks HTTPS                         | Fully deployed, secure (HTTPS), optimized for performance, scalable, high uptime |

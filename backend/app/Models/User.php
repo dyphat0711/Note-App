@@ -64,7 +64,7 @@ class User extends Authenticatable implements MustVerifyEmail
             return null;
         }
 
-        return Storage::disk('public')->url($this->avatar_path);
+        return '/storage/' . $this->avatar_path;
     }
 
     /**

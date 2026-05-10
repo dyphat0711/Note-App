@@ -26,7 +26,7 @@ class UpdatePreferencesRequest extends FormRequest
             'preferences' => ['required', 'array'],
             'preferences.theme' => ['nullable', 'string', 'in:light,dark,system'],
             'preferences.font_size' => ['nullable', 'integer', 'min:12', 'max:24'],
-            'preferences.default_note_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
+            'preferences.default_note_color' => ['nullable', 'string', 'regex:/^(#[0-9A-Fa-f]{6}|random)$/'],
             'preferences.default_label_color' => ['nullable', 'string', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'preferences.default_view' => ['nullable', 'string', 'in:grid,list'],
         ];

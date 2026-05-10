@@ -24,6 +24,7 @@ class StoreNoteRequest extends FormRequest
         return [
             'title' => ['required', 'string', 'max:255'],
             'content' => ['nullable', 'string'],
+            'color' => ['nullable', 'string', 'max:20'],
             'label_ids' => ['nullable', 'array'],
             'label_ids.*' => ['integer', 'exists:labels,id'],
         ];
