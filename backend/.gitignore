@@ -1,25 +1,55 @@
-*.log
-.DS_Store
+# ─────────────────────────────
+# Backend (Laravel) .gitignore
+# ─────────────────────────────
+
+# ── Dependencies ──────────────
+/vendor/
+
+# ── Environment ───────────────
 .env
 .env.backup
 .env.production
-.phpactor.json
-.phpunit.result.cache
-/.fleet
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
-/auth.json
-/node_modules
-/public/build
-/public/hot
-/public/storage
-/storage/*.key
+!.env.example
+
+# ── Laravel runtime ───────────
+/storage/framework/cache/data/*
+!storage/framework/cache/data/.gitkeep
+/storage/framework/sessions/*
+!storage/framework/sessions/.gitkeep
+/storage/framework/testing/*
+!storage/framework/testing/.gitkeep
+/storage/framework/views/*
+!storage/framework/views/.gitkeep
+/storage/app/public/*
+!storage/app/public/.gitkeep
+/storage/app/private/*
+!storage/app/private/.gitkeep
 /storage/pail
-/vendor
+/storage/*.key
+/bootstrap/cache/*.php
+/public/storage
+/public/hot
+
+# ── Database ──────────────────
+database/*.sqlite
+database/*.sqlite-journal
+
+# ── IDE & Helpers ─────────────
+.idea/
+.vscode/
+.fleet/
+.nova/
+.zed/
 _ide_helper.php
+_ide_helper_models.php
+.phpactor.json
+
+# ── OS ────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Misc ──────────────────────
+*.log
+/auth.json
 Homestead.json
 Homestead.yaml
-Thumbs.db

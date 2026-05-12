@@ -1,25 +1,37 @@
-import Echo from "laravel-echo";
-import Pusher from "pusher-js";
-
 let echoInstance = null;
+let echoModulesLoaded = false;
+
+/**
+ * Dynamically import Echo + Pusher only when first needed (saves ~40 KB from
+ * the initial bundle for users who don't have shared notes).
+ */
+async function loadEchoModules() {
+  if (echoModulesLoaded) return;
+  const [{ default: Echo }, { default: Pusher }] = await Promise.all([
+    import("laravel-echo"),
+    import("pusher-js"),
+  ]);
+  window.Pusher = Pusher;
+  window._EchoClass = Echo;
+  echoModulesLoaded = true;
+}
 
 /**
  * Lazy-init a Laravel Echo client backed by the Pusher protocol that Reverb implements.
  * The auth token from localStorage is forwarded to /broadcasting/auth so private and
  * presence channels can authenticate against the Sanctum-protected route.
+ *
+ * Returns null synchronously if the modules haven't been loaded yet. Call
+ * `ensureEcho()` (async) in effects to guarantee readiness.
  */
 export function getEcho() {
   if (echoInstance) return echoInstance;
-
-  if (typeof window === "undefined") return null;
-
-  window.Pusher = Pusher;
+  if (!echoModulesLoaded || typeof window === "undefined") return null;
 
   const key = import.meta.env.VITE_REVERB_APP_KEY;
-  if (!key) {
-    return null; // Real-time disabled (no env config)
-  }
+  if (!key) return null; // Real-time disabled (no env config)
 
+  const EchoClass = window._EchoClass;
   const host = import.meta.env.VITE_REVERB_HOST || window.location.hostname;
   const port =
     Number(import.meta.env.VITE_REVERB_PORT) ||
@@ -32,7 +44,7 @@ export function getEcho() {
 
   const broadcastingAuthEndpoint = `${baseUrl.replace(/\/api\/?$/, "")}/broadcasting/auth`;
 
-  echoInstance = new Echo({
+  echoInstance = new EchoClass({
     broadcaster: "reverb",
     key,
     wsHost: host,
@@ -50,6 +62,15 @@ export function getEcho() {
   });
 
   return echoInstance;
+}
+
+/**
+ * Async version — loads modules on demand, then returns the Echo instance.
+ * Safe to call multiple times.
+ */
+export async function ensureEcho() {
+  await loadEchoModules();
+  return getEcho();
 }
 
 export function disconnectEcho() {

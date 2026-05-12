@@ -43,12 +43,16 @@ class NoteUpdated implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
+        $updater = \App\Models\User::find($this->updatedBy);
+
         return [
             'note_id' => $this->note->id,
             'title' => $this->note->title,
             'content' => $this->note->content,
+            'color' => $this->note->color,
             'has_password' => $this->note->password !== null,
             'updated_by' => $this->updatedBy,
+            'updated_by_name' => $updater?->display_name ?? $updater?->email,
             'updated_at' => $this->note->updated_at?->toIso8601String(),
         ];
     }

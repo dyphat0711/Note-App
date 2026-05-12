@@ -232,8 +232,10 @@ const ShareModal = React.memo(({ isOpen, note, onClose, presenceUsers = [], typi
                           <span className="text-xs text-dark-50 capitalize">
                             {share.permission === "edit" ? "Can edit" : "Can view"}
                           </span>
-                          {typingUsers.includes(share.id) && (
-                            <span className="text-xs text-accent-400">· typing…</span>
+                          {(Array.isArray(typingUsers) ? typingUsers : []).find((t) => (typeof t === "object" ? t.id : t) === share.id) && (
+                            <span className="flex items-center gap-1 text-xs text-accent-400">
+                              · <span className="typing-indicator"><span /><span /><span /></span> typing…
+                            </span>
                           )}
                         </div>
                       </div>

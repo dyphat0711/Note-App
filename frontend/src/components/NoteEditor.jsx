@@ -21,6 +21,10 @@ import {
   Users,
   Plus,
   AlertCircle,
+  WifiOff,
+  Eye,
+  Edit3,
+  Radio,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import useNoteStore from "../store/useNoteStore";
@@ -28,9 +32,13 @@ import useAuthStore from "../store/useAuthStore";
 import ConfirmationModal from "./ConfirmationModal";
 import PasswordModal from "./PasswordModal";
 import ShareModal from "./ShareModal";
-import { joinNoteChannel, joinNotePresence, leaveNote } from "../lib/echo";
+import { getEcho, ensureEcho, joinNoteChannel, joinNotePresence, leaveNote } from "../lib/echo";
+import { useOfflineSync } from "../hooks/useOfflineSync";
 
 const SAVE_DEBOUNCE_MS = 800;
+
+// Longer debounce for title — user usually pauses longer between title edits
+const TITLE_DEBOUNCE_MS = 1000;
 
 const NoteEditor = React.memo(({ note, onClose }) => {
   const updateNote = useNoteStore((s) => s.updateNote);
@@ -41,6 +49,7 @@ const NoteEditor = React.memo(({ note, onClose }) => {
   const deleteAttachment = useNoteStore((s) => s.deleteAttachment);
   const applyRemoteNoteUpdate = useNoteStore((s) => s.applyRemoteNoteUpdate);
   const currentUser = useAuthStore((s) => s.user);
+  const { isOnline } = useOfflineSync();
 
   const canEdit = note?.isOwner || note?.sharePermission === "edit";
 
@@ -58,6 +67,12 @@ const NoteEditor = React.memo(({ note, onClose }) => {
   const fileInputRef = useRef(null);
   const saveTimerRef = useRef(null);
   const remoteUpdateRef = useRef(false); // flag to avoid echoing local changes
+  const whisperTimerRef = useRef(null); // throttle typing whispers
+  // Tracks the last content that was actually sent to the server.
+  // Used to skip saves when the user reverts to the previously saved value.
+  const lastSavedContentRef = useRef(note?.content || "");
+  // Accumulates pending field updates so title+content are batched into one API call.
+  const pendingUpdatesRef = useRef({});
 
   const editor = useEditor({
     editable: canEdit,
@@ -70,11 +85,44 @@ const NoteEditor = React.memo(({ note, onClose }) => {
     content: note?.content || "",
     onUpdate: ({ editor: ed }) => {
       if (remoteUpdateRef.current) return;
+
+      // ── Diff check: skip save if content reverted to last-saved value ──
+      const html = ed.getHTML();
+      if (html === lastSavedContentRef.current) {
+        // User typed then immediately undid — nothing to save
+        setSaveStatus("saved");
+        return;
+      }
+
       setSaveStatus("unsaved");
+
+      // Broadcast typing whisper to collaborators (throttled to 1 per second)
+      if (note?.isShared && canEdit && !whisperTimerRef.current) {
+        try {
+          const echo = getEcho();
+          if (echo) {
+            echo.join(`note.${note.id}`).whisper("typing", {
+              userId: currentUser?.id,
+              userName: currentUser?.displayName || currentUser?.email,
+            });
+          }
+        } catch { /* ignore whisper failures */ }
+        whisperTimerRef.current = setTimeout(() => {
+          whisperTimerRef.current = null;
+        }, 1000);
+      }
+
+      // ── Batch update: accumulate content, flush with title together ──
+      pendingUpdatesRef.current.content = html;
+
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
+        const updates = { ...pendingUpdatesRef.current };
+        pendingUpdatesRef.current = {};
+        if (Object.keys(updates).length === 0) return;
         setSaveStatus("saving");
-        await updateNote(note.id, { content: ed.getHTML() });
+        await updateNote(note.id, updates);
+        if (updates.content !== undefined) lastSavedContentRef.current = updates.content;
         setSaveStatus("saved");
       }, SAVE_DEBOUNCE_MS);
     },
@@ -84,6 +132,10 @@ const NoteEditor = React.memo(({ note, onClose }) => {
   useEffect(() => {
     setTitle(note?.title || "");
     setSaveStatus("saved");
+    // Reset saved-content tracking for the newly opened note
+    lastSavedContentRef.current = note?.content || "";
+    pendingUpdatesRef.current = {};
+    if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
     if (editor && !editor.isDestroyed) {
       editor.setEditable(canEdit);
       const incoming = note?.content || "";
@@ -97,19 +149,28 @@ const NoteEditor = React.memo(({ note, onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note?.id, canEdit]);
 
-  // Auto-save title.
+  // Auto-save title — batched into the same API call as content when possible.
   useEffect(() => {
     if (!note || !canEdit || title === note.title) return;
     const timer = setTimeout(async () => {
-      setSaveStatus("saving");
       let finalTitle = title.trim();
       if (!finalTitle) {
         finalTitle = useNoteStore.getState().getNextUntitledTitle();
         setTitle(finalTitle);
       }
-      await updateNote(note.id, { title: finalTitle });
+      // Merge title into pending updates so one API call covers both title+content
+      pendingUpdatesRef.current.title = finalTitle;
+
+      // If a content save is already scheduled, let it pick up the title too
+      if (saveTimerRef.current) return;
+
+      // No content save pending — flush title alone now
+      const updates = { ...pendingUpdatesRef.current };
+      pendingUpdatesRef.current = {};
+      setSaveStatus("saving");
+      await updateNote(note.id, updates);
       setSaveStatus("saved");
-    }, SAVE_DEBOUNCE_MS);
+    }, TITLE_DEBOUNCE_MS);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title]);
@@ -131,9 +192,15 @@ const NoteEditor = React.memo(({ note, onClose }) => {
     if (!note?.id || !note?.isShared) return;
     if (typeof note.id !== "number" && !/^\d+$/.test(String(note.id))) return;
 
-    const channel = joinNoteChannel(note.id);
-    const presence = joinNotePresence(note.id);
-    if (!channel) return;
+    // Lazy-load Echo/Pusher modules before subscribing
+    let cancelled = false;
+    (async () => {
+      await ensureEcho();
+      if (cancelled) return;
+
+      const channel = joinNoteChannel(note.id);
+      const presence = joinNotePresence(note.id);
+      if (!channel) return;
 
     channel.listen(".NoteUpdated", (payload) => {
       if (payload.updated_by === currentUser?.id) return;
@@ -150,6 +217,7 @@ const NoteEditor = React.memo(({ note, onClose }) => {
       applyRemoteNoteUpdate(note.id, {
         title: payload.title,
         content: payload.has_password ? null : payload.content,
+        color: payload.color,
         hasPassword: payload.has_password,
         updatedAt: payload.updated_at,
       });
@@ -176,17 +244,21 @@ const NoteEditor = React.memo(({ note, onClose }) => {
         .leaving((user) => {
           setPresenceUsers((prev) => prev.filter((u) => u.id !== user.id));
         })
-        .listenForWhisper("typing", ({ userId }) => {
-          setTypingUsers((prev) =>
-            prev.includes(userId) ? prev : [...prev, userId],
-          );
+        .listenForWhisper("typing", ({ userId, userName }) => {
+          setTypingUsers((prev) => {
+            if (prev.find((t) => t.id === userId)) return prev;
+            return [...prev, { id: userId, name: userName }];
+          });
           setTimeout(() => {
-            setTypingUsers((prev) => prev.filter((id) => id !== userId));
+            setTypingUsers((prev) => prev.filter((t) => t.id !== userId));
           }, 2500);
         });
     }
 
+    })(); // end async IIFE
+
     return () => {
+      cancelled = true;
       leaveNote(note.id);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -276,17 +348,21 @@ const NoteEditor = React.memo(({ note, onClose }) => {
   };
 
   const saveStatusText =
-    saveStatus === "saving"
-      ? "Saving..."
-      : saveStatus === "unsaved"
-        ? "Unsaved"
-        : "All changes saved";
+    !isOnline
+      ? "Queued offline"
+      : saveStatus === "saving"
+        ? "Saving..."
+        : saveStatus === "unsaved"
+          ? "Unsaved"
+          : "All changes saved";
   const saveStatusColor =
-    saveStatus === "saving"
-      ? "text-dark-50"
-      : saveStatus === "unsaved"
-        ? "text-amber-400"
-        : "text-dark-50";
+    !isOnline
+      ? "text-amber-400"
+      : saveStatus === "saving"
+        ? "text-dark-50"
+        : saveStatus === "unsaved"
+          ? "text-amber-400"
+          : "text-dark-50";
 
   const toolbarBtn = (active) =>
     `p-1.5 rounded transition-colors ${
@@ -297,31 +373,79 @@ const NoteEditor = React.memo(({ note, onClose }) => {
 
   return (
     <div className="flex-1 bg-dark-500 flex flex-col h-full overflow-hidden">
+      {/* Collaboration banner – shows when other users are present */}
+      {note?.isShared && presenceUsers.length > 1 && (
+        <div className="flex-shrink-0 px-6 py-2 flex items-center justify-between" style={{
+          background: "rgba(59, 130, 246, 0.06)",
+          borderBottom: "1px solid rgba(59, 130, 246, 0.12)",
+        }}>
+          <div className="flex items-center gap-2">
+            <span className="live-indicator" />
+            <span className="text-xs text-blue-300 font-medium">
+              {presenceUsers.length} collaborator{presenceUsers.length !== 1 ? "s" : ""} online
+            </span>
+            {typingUsers.length > 0 && (
+              <span className="flex items-center gap-1.5 text-xs text-accent-300">
+                <span className="typing-indicator">
+                  <span /><span /><span />
+                </span>
+                {typingUsers.map((t) => t.name || "Someone").join(", ")}
+                {typingUsers.length === 1 ? " is" : " are"} typing…
+              </span>
+            )}
+          </div>
+          <div className="presence-avatar-stack">
+            {presenceUsers.slice(0, 5).map((u) => (
+              <span
+                key={u.id}
+                className="presence-avatar"
+                style={{
+                  background: u.id === currentUser?.id
+                    ? "rgba(99, 102, 241, 0.25)"
+                    : "rgba(59, 130, 246, 0.2)",
+                  color: u.id === currentUser?.id
+                    ? "rgb(165, 180, 252)"
+                    : "rgb(147, 197, 253)",
+                }}
+                title={`${u.display_name || u.email}${u.id === currentUser?.id ? " (you)" : ""}`}
+              >
+                {(u.display_name || u.email || "?").charAt(0).toUpperCase()}
+              </span>
+            ))}
+            {presenceUsers.length > 5 && (
+              <span className="presence-avatar" style={{
+                background: "rgba(var(--dark-200), 0.8)",
+                color: "rgb(var(--dark-50))",
+              }}>
+                +{presenceUsers.length - 5}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="flex-shrink-0 px-6 py-4 border-b border-dark-300">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-3">
-            <span className={`text-xs ${saveStatusColor}`}>{saveStatusText}</span>
-            {note?.isShared && presenceUsers.length > 0 && (
+            <span className={`flex items-center gap-1 text-xs ${saveStatusColor}`}>
+              {!isOnline && <WifiOff size={11} />}
+              {saveStatusText}
+            </span>
+            {note?.isShared && presenceUsers.length > 0 && presenceUsers.length <= 1 && (
               <div className="flex items-center gap-1 text-xs text-dark-50">
-                <span className="flex -space-x-1.5">
-                  {presenceUsers.slice(0, 3).map((u) => (
-                    <span
-                      key={u.id}
-                      className="w-5 h-5 rounded-full bg-accent-500/30 border border-dark-500 flex items-center justify-center text-[10px] text-accent-200 font-medium"
-                      title={u.display_name || u.email}
-                    >
-                      {(u.display_name || u.email || "?").charAt(0).toUpperCase()}
-                    </span>
-                  ))}
-                </span>
-                <span>{presenceUsers.length} online</span>
+                <span className="live-indicator" style={{ marginRight: "2px" }} />
+                <span>Connected</span>
               </div>
             )}
             {!note?.isOwner && (
-              <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-300">
-                <Users size={10} />
-                Shared · {note?.sharePermission || "read"}
+              <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                note?.sharePermission === "edit"
+                  ? "bg-blue-500/10 text-blue-300"
+                  : "bg-slate-500/10 text-slate-400"
+              }`}>
+                {note?.sharePermission === "edit" ? <Edit3 size={10} /> : <Eye size={10} />}
+                {note?.sharePermission === "edit" ? "Can Edit" : "Read Only"}
               </span>
             )}
           </div>
@@ -509,7 +633,8 @@ const NoteEditor = React.memo(({ note, onClose }) => {
             onClick={handleAttachImages}
             className={toolbarBtn(false)}
             aria-label="Attach images"
-            title="Attach image (jpg, png, webp, gif – max 5MB)"
+            title={isOnline ? "Attach image (jpg, png, webp, gif – max 5MB)" : "Attachments unavailable offline"}
+            disabled={!isOnline}
           >
             <ImageIcon size={16} />
           </button>

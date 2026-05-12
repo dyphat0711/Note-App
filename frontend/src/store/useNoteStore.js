@@ -6,6 +6,19 @@ import {
   attachmentAPI,
 } from "../api/services";
 import useAuthStore from "./useAuthStore";
+import offlineStore from "../lib/offlineStore";
+
+/**
+ * Enqueue a mutation to the IndexedDB pending queue.
+ * Note.update mutations are deduplicated (merged) by note id.
+ */
+async function enqueueMutation(type, payload) {
+  if (type === "note.update" && payload?.id) {
+    return offlineStore.enqueueNoteUpdate(payload.id, payload.body);
+  }
+  return offlineStore.enqueue({ type, payload });
+}
+
 
 function transformLabel(l) {
   return {
@@ -47,7 +60,7 @@ function extractArray(val) {
   return [];
 }
 
-function transformNote(n) {
+export function transformNote(n) {
   if (!n) return null;
   return {
     id: n.id,
@@ -61,6 +74,7 @@ function transformNote(n) {
     isShared: Boolean(n.is_shared),
     isOwner: n.is_owner ?? true,
     sharePermission: n.share_permission ?? null,
+    sharedAt: n.shared_at || null,
     owner: n.owner || null,
     labels: extractArray(n.labels).map(transformLabel),
     shares: extractArray(n.shares).map(transformShare),
@@ -126,13 +140,19 @@ const useNoteStore = create((set, get) => ({
     return `Untitled ${max + 1}`;
   },
 
-  setActiveNote: (id) => set({ activeNoteId: id }),
+  setActiveNote: (id) => {
+    try {
+      if (id) localStorage.setItem("noteflow.lastActiveNoteId", String(id));
+      else localStorage.removeItem("noteflow.lastActiveNoteId");
+    } catch { /* ignore */ }
+    set({ activeNoteId: id });
+  },
 
   createNote: async () => {
     const defaultTitle = get().getNextUntitledTitle();
     const tempId = `temp-${Date.now()}`;
     const now = new Date().toISOString();
-    
+
     let defaultColor = null;
     try {
       const user = useAuthStore.getState().user;
@@ -170,6 +190,15 @@ const useNoteStore = create((set, get) => ({
       notes: [optimisticNote, ...s.notes],
       activeNoteId: tempId,
     }));
+
+    // When offline: enqueue the creation so it replays when network is back.
+    if (!navigator.onLine) {
+      const payload = { title: defaultTitle, content: "" };
+      if (defaultColor) payload.color = defaultColor;
+      await enqueueMutation("note.create", { tempId, body: payload }).catch(() => {});
+      return optimisticNote;
+    }
+
     try {
       const payload = { title: defaultTitle, content: "" };
       if (defaultColor) payload.color = defaultColor;
@@ -181,6 +210,10 @@ const useNoteStore = create((set, get) => ({
       }));
       return realNote;
     } catch {
+      // Network failed mid-flight; enqueue for later replay.
+      const payload = { title: defaultTitle, content: "" };
+      if (defaultColor) payload.color = defaultColor;
+      await enqueueMutation("note.create", { tempId, body: payload }).catch(() => {});
       return optimisticNote;
     }
   },
@@ -190,53 +223,89 @@ const useNoteStore = create((set, get) => ({
    * for the API. All fields are forwarded so labels persist on the server.
    */
   updateNote: async (id, updates) => {
+    // Optimistic update: apply changes but do NOT touch updatedAt so the note's
+    // position in the sorted list stays stable during autosave.
     set((s) => ({
-      notes: s.notes.map((n) =>
-        n.id === id ? { ...n, ...updates, updatedAt: new Date().toISOString() } : n,
-      ),
-      sharedNotes: s.sharedNotes.map((n) =>
-        n.id === id ? { ...n, ...updates, updatedAt: new Date().toISOString() } : n,
-      ),
+      notes: s.notes.map((n) => (n.id === id ? { ...n, ...updates } : n)),
+      sharedNotes: s.sharedNotes.map((n) => (n.id === id ? { ...n, ...updates } : n)),
     }));
-    if (String(id).startsWith("temp-")) return;
-    try {
-      const payload = {};
-      if (updates.title !== undefined) payload.title = updates.title;
-      if (updates.content !== undefined) payload.content = updates.content;
-      if (updates.labels !== undefined) {
-        payload.label_ids = (updates.labels || []).map((l) => l.id);
-      }
-      if (Object.keys(payload).length > 0) {
-        const { data } = await noteAPI.update(id, payload);
-        const fresh = transformNote(data.data);
-        set((s) => ({
-          notes: s.notes.map((n) => {
-            if (n.id !== id) return n;
-            // Preserve local attachments if there are more than what the server
-            // returned (upload may have committed after the update response).
-            const mergedAttachments =
-              (n.attachments || []).length > (fresh.attachments || []).length
-                ? n.attachments
-                : fresh.attachments;
-            return {
-              ...fresh,
-              content: n.content ?? fresh.content,
-              attachments: mergedAttachments,
-            };
-          }),
-          sharedNotes: s.sharedNotes.map((n) => {
-            if (n.id !== id) return n;
-            const mergedAttachments =
-              (n.attachments || []).length > (fresh.attachments || []).length
-                ? n.attachments
-                : fresh.attachments;
-            return { ...fresh, content: n.content ?? fresh.content, attachments: mergedAttachments };
-          }),
-        }));
-      }
+    // Temp notes haven't been created on the server yet. Update the pending
+    // note.create mutation in IndexedDB so the flush sends the latest data.
+    if (String(id).startsWith("temp-")) {
+      try {
+        const pending = await offlineStore.listPending();
+        const createMut = pending.find(
+          (m) => m.type === "note.create" && m.payload?.tempId === id,
+        );
+        if (createMut) {
+          const merged = { ...createMut.payload.body };
+          if (updates.title !== undefined) merged.title = updates.title;
+          if (updates.content !== undefined) merged.content = updates.content;
+          if (updates.color !== undefined) merged.color = updates.color;
+          // Remove the old entry and re-enqueue with the updated body.
+          await offlineStore.dropPending(createMut.id);
+          await offlineStore.enqueue({
+            type: "note.create",
+            payload: { ...createMut.payload, body: merged },
+          });
+        }
+      } catch { /* best-effort */ }
+      return;
+    }
 
+    const payload = {};
+    if (updates.title !== undefined) payload.title = updates.title;
+    if (updates.content !== undefined) payload.content = updates.content;
+    if (updates.color !== undefined) payload.color = updates.color;
+    if (updates.labels !== undefined) {
+      payload.label_ids = (updates.labels || []).map((l) => l.id);
+    }
+    if (Object.keys(payload).length === 0) return;
+
+    // When offline: enqueue the update for later replay (deduplicated by note id).
+    if (!navigator.onLine) {
+      await enqueueMutation("note.update", { id, body: payload }).catch(() => {});
+      return;
+    }
+
+    try {
+      const { data } = await noteAPI.update(id, payload);
+      const fresh = transformNote(data.data);
+      set((s) => ({
+        notes: s.notes.map((n) => {
+          if (n.id !== id) return n;
+          // Preserve local attachments if there are more than what the server
+          // returned (upload may have committed after the update response).
+          const mergedAttachments =
+            (n.attachments || []).length > (fresh.attachments || []).length
+              ? n.attachments
+              : fresh.attachments;
+          return {
+            ...fresh,
+            // Keep the in-memory content (user may have typed more since save)
+            content: n.content ?? fresh.content,
+            attachments: mergedAttachments,
+            // Preserve updatedAt so sort position stays stable until fetchAll.
+            updatedAt: n.updatedAt,
+          };
+        }),
+        sharedNotes: s.sharedNotes.map((n) => {
+          if (n.id !== id) return n;
+          const mergedAttachments =
+            (n.attachments || []).length > (fresh.attachments || []).length
+              ? n.attachments
+              : fresh.attachments;
+          return {
+            ...fresh,
+            content: n.content ?? fresh.content,
+            attachments: mergedAttachments,
+            updatedAt: n.updatedAt,
+          };
+        }),
+      }));
     } catch {
-      /* keep optimistic state; UI shows latest input */
+      // Mid-flight network failure — enqueue so it replays on reconnect.
+      await enqueueMutation("note.update", { id, body: payload }).catch(() => {});
     }
   },
 
@@ -261,18 +330,24 @@ const useNoteStore = create((set, get) => ({
   },
 
   deleteNote: async (id) => {
+    // Optimistic removal.
     set((s) => ({
       notes: s.notes.filter((n) => n.id !== id),
       activeNoteId: s.activeNoteId === id ? null : s.activeNoteId,
     }));
+    if (!navigator.onLine) {
+      await enqueueMutation("note.delete", { id }).catch(() => {});
+      return;
+    }
     try {
       await noteAPI.delete(id);
     } catch {
-      /* silent */
+      await enqueueMutation("note.delete", { id }).catch(() => {});
     }
   },
 
   togglePin: async (id) => {
+    // Optimistic toggle.
     set((s) => ({
       notes: s.notes.map((n) =>
         n.id === id
@@ -284,10 +359,14 @@ const useNoteStore = create((set, get) => ({
           : n,
       ),
     }));
+    if (!navigator.onLine) {
+      await enqueueMutation("note.togglePin", { id }).catch(() => {});
+      return;
+    }
     try {
       await noteAPI.togglePin(id);
     } catch {
-      /* silent */
+      await enqueueMutation("note.togglePin", { id }).catch(() => {});
     }
   },
 

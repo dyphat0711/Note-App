@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import {
   FileText,
@@ -24,8 +25,22 @@ const COLOR_PRESETS = [
   "#64748b",
 ];
 
-const ColorPicker = ({ value, onChange }) => {
+const ColorPicker = ({ value, onChange, isDark = true }) => {
   const [custom, setCustom] = useState(value || "#3b82f6");
+
+  // Keep the text input in sync when the parent changes the selected color
+  useEffect(() => {
+    setCustom(value || "#3b82f6");
+  }, [value]);
+
+  // Theme-aware input styles
+  const inputStyle = isDark
+    ? { background: "#0f172a", border: "1px solid rgba(99,102,241,0.35)", color: "#cbd5e1" }
+    : { background: "#f1f5f9", border: "1px solid rgba(99,102,241,0.25)", color: "#1e293b" };
+
+  const previewBorder = isDark
+    ? "1px solid rgba(255,255,255,0.15)"
+    : "1px solid rgba(0,0,0,0.12)";
 
   return (
     <div className="p-2.5 space-y-2.5">
@@ -51,34 +66,102 @@ const ColorPicker = ({ value, onChange }) => {
             setCustom(e.target.value);
             if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) onChange(e.target.value);
           }}
-          className="flex-1 px-2 py-1 text-xs bg-dark-200 border border-dark-100 rounded-lg text-surface-200 focus:outline-none focus:ring-1 focus:ring-accent-500 font-mono"
+          className="flex-1 px-2 py-1 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-accent-500 font-mono"
+          style={inputStyle}
           placeholder="#000000"
         />
         <span
-          className="w-5 h-5 rounded-md border border-dark-100 flex-shrink-0 transition-colors"
-          style={{ backgroundColor: value }}
+          className="w-5 h-5 rounded-md flex-shrink-0 transition-colors"
+          style={{ backgroundColor: value, border: previewBorder }}
         />
       </div>
     </div>
   );
 };
 
+/**
+ * Renders the ColorPicker in a portal attached to document.body so it is
+ * never clipped by overflow:auto/hidden ancestor containers.
+ * Automatically adapts colors to dark / light theme.
+ */
+const PickerPortal = ({ anchorRef, value, onChange, onClose }) => {
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const portalRef = useRef(null);
+
+  // Detect current theme
+  const isDark = document.documentElement.classList.contains("dark");
+
+  // Theme-aware styles
+  const pickerStyle = isDark
+    ? {
+        background: "#1e293b",          // dark-200 equivalent
+        border: "1px solid rgba(99,102,241,0.3)",
+        boxShadow: "0 12px 40px rgba(0,0,0,0.7), 0 0 0 1px rgba(0,0,0,0.4)",
+      }
+    : {
+        background: "#ffffff",           // clean white
+        border: "1px solid rgba(99,102,241,0.2)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06)",
+      };
+
+  // Position the portal below the anchor button
+  useEffect(() => {
+    if (anchorRef?.current) {
+      const rect = anchorRef.current.getBoundingClientRect();
+      setCoords({
+        top: rect.bottom + 6,
+        left: rect.left,
+      });
+    }
+  }, [anchorRef]);
+
+  // Close when clicking outside the portal
+  useEffect(() => {
+    const handleMouseDown = (e) => {
+      if (portalRef.current && !portalRef.current.contains(e.target) &&
+          anchorRef?.current && !anchorRef.current.contains(e.target)) {
+        onClose();
+      }
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [onClose, anchorRef]);
+
+  return createPortal(
+    <div
+      ref={portalRef}
+      style={{
+        position: "fixed",
+        top: coords.top,
+        left: coords.left,
+        zIndex: 99999,
+        width: "208px",
+        borderRadius: "12px",
+        ...pickerStyle,
+      }}
+    >
+      <ColorPicker value={value} onChange={onChange} isDark={isDark} />
+    </div>,
+    document.body
+  );
+};
+
 const Sidebar = React.memo(({ onClose }) => {
-  const {
-    labels,
-    activeSection,
-    selectedLabelIds,
-    sharedNotes,
-    setActiveSection,
-    toggleLabelFilter,
-    clearLabelFilters,
-    createNote,
-    addLabel,
-    updateLabel,
-    deleteLabel,
-    setActiveNote,
-    refreshSharedWithMe,
-  } = useNoteStore();
+  // Individual selectors prevent re-renders when unrelated state changes
+  // (e.g. editor content, search query, activeNoteId, etc.)
+  const labels = useNoteStore((s) => s.labels);
+  const activeSection = useNoteStore((s) => s.activeSection);
+  const selectedLabelIds = useNoteStore((s) => s.selectedLabelIds);
+  const sharedNotes = useNoteStore((s) => s.sharedNotes);
+  const setActiveSection = useNoteStore((s) => s.setActiveSection);
+  const toggleLabelFilter = useNoteStore((s) => s.toggleLabelFilter);
+  const clearLabelFilters = useNoteStore((s) => s.clearLabelFilters);
+  const createNote = useNoteStore((s) => s.createNote);
+  const addLabel = useNoteStore((s) => s.addLabel);
+  const updateLabel = useNoteStore((s) => s.updateLabel);
+  const deleteLabel = useNoteStore((s) => s.deleteLabel);
+  const setActiveNote = useNoteStore((s) => s.setActiveNote);
+  const refreshSharedWithMe = useNoteStore((s) => s.refreshSharedWithMe);
   const user = useAuthStore((s) => s.user);
 
   const [showNewLabelInput, setShowNewLabelInput] = useState(false);
@@ -91,16 +174,12 @@ const Sidebar = React.memo(({ onClose }) => {
   const [confirmDeleteLabelId, setConfirmDeleteLabelId] = useState(null);
 
   const colorPickerRef = useRef(null);
+  // Ref for the new-label color swatch button (portal anchor)
+  const newColorBtnRef = useRef(null);
+  // Refs map for edit-label color swatch buttons
+  const editColorBtnRefs = useRef({});
 
-  useEffect(() => {
-    const handleClick = (e) => {
-      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target)) {
-        setShowColorPickerFor(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  const closeColorPicker = useCallback(() => setShowColorPickerFor(null), []);
 
   const sharedCount = sharedNotes.length;
 
@@ -284,22 +363,20 @@ const Sidebar = React.memo(({ onClose }) => {
               {showNewLabelInput && (
                 <div className="px-2 py-2 space-y-2 animate-fade-in-up">
                   <div className="flex items-center gap-2">
-                    <div
-                      className="relative"
-                      ref={showColorPickerFor === "new" ? colorPickerRef : undefined}
-                    >
-                      <button
-                        onClick={() => setShowColorPickerFor(showColorPickerFor === "new" ? null : "new")}
-                        className="w-5 h-5 rounded-full border-2 border-dark-100 flex-shrink-0 transition-transform hover:scale-110"
-                        style={{ backgroundColor: newLabelColor }}
+                    <button
+                      ref={newColorBtnRef}
+                      onClick={() => setShowColorPickerFor(showColorPickerFor === "new" ? null : "new")}
+                      className="w-5 h-5 rounded-full border-2 border-dark-100 flex-shrink-0 transition-transform hover:scale-110"
+                      style={{ backgroundColor: newLabelColor }}
+                    />
+                    {showColorPickerFor === "new" && (
+                      <PickerPortal
+                        anchorRef={newColorBtnRef}
+                        value={newLabelColor}
+                        onChange={setNewLabelColor}
+                        onClose={closeColorPicker}
                       />
-                      {showColorPickerFor === "new" && (
-                        <div className="absolute left-0 top-full mt-1 z-50 w-52 rounded-xl shadow-dark-lg animate-scale-in"
-                          style={{ background: "rgb(var(--dark-200))", border: "1px solid rgba(var(--dark-100), 0.8)" }}>
-                          <ColorPicker value={newLabelColor} onChange={setNewLabelColor} />
-                        </div>
-                      )}
-                    </div>
+                    )}
                     <input
                       type="text"
                       value={newLabelName}
@@ -309,8 +386,12 @@ const Sidebar = React.memo(({ onClose }) => {
                         if (e.key === "Escape") { setShowNewLabelInput(false); setShowColorPickerFor(null); }
                       }}
                       placeholder="Label name..."
-                      className="flex-1 px-2 py-1 text-xs rounded-lg text-surface-200 placeholder-dark-50 focus:outline-none focus:ring-1 focus:ring-accent-500"
-                      style={{ background: "rgb(var(--dark-200))", border: "1px solid rgba(var(--dark-100), 0.8)" }}
+                      className="flex-1 px-2 py-1 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-accent-500"
+                      style={{
+                        background: "rgb(var(--dark-200))",
+                        border: "1px solid rgb(var(--dark-100))",
+                        color: "rgb(var(--surface-200))",
+                      }}
                       autoFocus
                     />
                     <button onClick={handleNewLabel} className="text-accent-400 hover:text-accent-300 transition-colors" aria-label="Save">
@@ -329,22 +410,20 @@ const Sidebar = React.memo(({ onClose }) => {
                   {editingLabelId === label.id ? (
                     <div className="px-2 py-2 space-y-2 animate-fade-in-up">
                       <div className="flex items-center gap-2">
-                        <div
-                          className="relative"
-                          ref={showColorPickerFor === label.id ? colorPickerRef : undefined}
-                        >
-                          <button
-                            onClick={() => setShowColorPickerFor(showColorPickerFor === label.id ? null : label.id)}
-                            className="w-5 h-5 rounded-full border-2 border-dark-100 flex-shrink-0 transition-transform hover:scale-110"
-                            style={{ backgroundColor: editLabelColor }}
+                        <button
+                          ref={(el) => { editColorBtnRefs.current[label.id] = el; }}
+                          onClick={() => setShowColorPickerFor(showColorPickerFor === label.id ? null : label.id)}
+                          className="w-5 h-5 rounded-full border-2 border-dark-100 flex-shrink-0 transition-transform hover:scale-110"
+                          style={{ backgroundColor: editLabelColor }}
+                        />
+                        {showColorPickerFor === label.id && (
+                          <PickerPortal
+                            anchorRef={{ current: editColorBtnRefs.current[label.id] }}
+                            value={editLabelColor}
+                            onChange={setEditLabelColor}
+                            onClose={closeColorPicker}
                           />
-                          {showColorPickerFor === label.id && (
-                            <div className="absolute left-0 top-full mt-1 z-50 w-52 rounded-xl shadow-dark-lg animate-scale-in"
-                              style={{ background: "rgb(var(--dark-200))", border: "1px solid rgba(var(--dark-100), 0.8)" }}>
-                              <ColorPicker value={editLabelColor} onChange={setEditLabelColor} />
-                            </div>
-                          )}
-                        </div>
+                        )}
                         <input
                           type="text"
                           value={editLabelName}
@@ -353,8 +432,12 @@ const Sidebar = React.memo(({ onClose }) => {
                             if (e.key === "Enter") saveEditLabel();
                             if (e.key === "Escape") { setEditingLabelId(null); setShowColorPickerFor(null); }
                           }}
-                          className="flex-1 px-2 py-1 text-xs rounded-lg text-surface-200 focus:outline-none focus:ring-1 focus:ring-accent-500"
-                          style={{ background: "rgb(var(--dark-200))", border: "1px solid rgba(var(--dark-100), 0.8)" }}
+                          className="flex-1 px-2 py-1 text-xs rounded-lg focus:outline-none focus:ring-1 focus:ring-accent-500"
+                          style={{
+                            background: "rgb(var(--dark-200))",
+                            border: "1px solid rgb(var(--dark-100))",
+                            color: "rgb(var(--surface-200))",
+                          }}
                           autoFocus
                         />
                         <button onClick={saveEditLabel} className="text-accent-400 hover:text-accent-300 transition-colors" aria-label="Save">

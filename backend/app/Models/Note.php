@@ -99,11 +99,28 @@ class Note extends Model
     /**
      * Scope a query to search notes by keyword.
      *
+     * Uses FULLTEXT MATCH AGAINST on MySQL/MariaDB for indexed performance.
+     * Falls back to LIKE for other drivers (e.g. SQLite in tests).
+     *
      * @param \Illuminate\Database\Eloquent\Builder<self> $query
      * @return \Illuminate\Database\Eloquent\Builder<self>
      */
     public function scopeSearch($query, string $keyword): mixed
     {
+        $driver = $query->getConnection()->getDriverName();
+
+        if (in_array($driver, ['mysql', 'mariadb'])) {
+            // FULLTEXT search — uses the notes_fulltext_idx index.
+            // Boolean mode allows partial matching and is more lenient.
+            $escaped = addcslashes($keyword, '+-<>()~*"@');
+
+            return $query->whereRaw(
+                'MATCH(title, content) AGAINST(? IN BOOLEAN MODE)',
+                [$escaped . '*'],
+            );
+        }
+
+        // Fallback for SQLite / PostgreSQL
         return $query->where(function ($q) use ($keyword): void {
             $q->where('title', 'like', "%{$keyword}%")
                 ->orWhere('content', 'like', "%{$keyword}%");

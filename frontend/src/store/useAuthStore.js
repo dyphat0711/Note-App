@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { authAPI, profileAPI, preferencesAPI } from "../api/services";
+import offlineStore from "../lib/offlineStore";
 
 function mapUser(u) {
   if (!u) return null;
@@ -27,11 +28,10 @@ const useAuthStore = create((set, get) => ({
       await authAPI.getCsrfCookie().catch(() => {});
       const { data } = await authAPI.register(credentials);
       localStorage.setItem("auth_token", data.access_token);
-      set({
-        user: mapUser(data.user),
-        token: data.access_token,
-        isLoading: false,
-      });
+      const user = mapUser(data.user);
+      // Cache user profile for offline cold-start.
+      offlineStore.putUser(user).catch(() => {});
+      set({ user, token: data.access_token, isLoading: false });
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.message || "Registration failed";
@@ -47,11 +47,10 @@ const useAuthStore = create((set, get) => ({
       await authAPI.getCsrfCookie().catch(() => {});
       const { data } = await authAPI.login(credentials);
       localStorage.setItem("auth_token", data.access_token);
-      set({
-        user: mapUser(data.user),
-        token: data.access_token,
-        isLoading: false,
-      });
+      const user = mapUser(data.user);
+      // Cache user profile for offline cold-start.
+      offlineStore.putUser(user).catch(() => {});
+      set({ user, token: data.access_token, isLoading: false });
       return { success: true };
     } catch (err) {
       const message = err.response?.data?.message || "Login failed";
@@ -68,6 +67,8 @@ const useAuthStore = create((set, get) => ({
       /* ignore */
     }
     localStorage.removeItem("auth_token");
+    // Wipe the local offline cache so stale data isn't visible after logout.
+    offlineStore.clearAll().catch(() => {});
     set({ user: null, token: null, isLoading: false, error: null });
   },
 
@@ -79,8 +80,25 @@ const useAuthStore = create((set, get) => ({
     }
     try {
       const { data } = await authAPI.getUser();
-      set({ user: mapUser(data.data || data), token, initialized: true });
-    } catch {
+      const user = mapUser(data.data || data);
+      // Keep the cache fresh.
+      offlineStore.putUser(user).catch(() => {});
+      set({ user, token, initialized: true });
+    } catch (err) {
+      const isNetworkErr =
+        !err.response &&
+        (err.code === "ERR_NETWORK" || err.message === "Network Error" || !navigator.onLine);
+
+      if (isNetworkErr) {
+        // Offline: hydrate from the cached user so ProtectedRoute lets the user in.
+        const cached = await offlineStore.getUser().catch(() => null);
+        if (cached) {
+          set({ user: cached, token, initialized: true });
+          return;
+        }
+      }
+
+      // Auth error or no cached user – clear token and redirect to login.
       localStorage.removeItem("auth_token");
       set({ user: null, token: null, initialized: true });
     }

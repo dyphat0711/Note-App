@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   Menu,
@@ -12,6 +12,7 @@ import {
   FileText,
   Star,
   Users,
+  Plus,
 } from "lucide-react";
 import useNoteStore from "../store/useNoteStore";
 import useAuthStore from "../store/useAuthStore";
@@ -39,33 +40,68 @@ const Dashboard = () => {
   const isLoading = useNoteStore((s) => s.isLoading);
   const unlockedNoteIds = useNoteStore((s) => s.unlockedNoteIds);
   const fetchAll = useNoteStore((s) => s.fetchAll);
+  const createNote = useNoteStore((s) => s.createNote);
+  const setActiveNote = useNoteStore((s) => s.setActiveNote);
   const activeSection = useNoteStore((s) => s.activeSection);
   const setActiveSection = useNoteStore((s) => s.setActiveSection);
   const refreshSharedWithMe = useNoteStore((s) => s.refreshSharedWithMe);
 
-  const activeNote =
-    notes.find((n) => n.id === activeNoteId) ||
-    sharedNotes.find((n) => n.id === activeNoteId) ||
-    null;
+  const activeNote = useMemo(
+    () =>
+      notes.find((n) => n.id === activeNoteId) ||
+      sharedNotes.find((n) => n.id === activeNoteId) ||
+      null,
+    [notes, sharedNotes, activeNoteId],
+  );
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  // On mobile (< lg breakpoint = 1024px) default to closed so returning from
+  // Profile / Preferences / ChangePassword doesn't trigger the sidebar overlay.
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => typeof window !== "undefined" && window.innerWidth >= 1024,
+  );
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [verifyBannerDismissed, setVerifyBannerDismissed] = useState(false);
   // Mobile: which panel is visible – "list" or "editor"
   const [mobilePanel, setMobilePanel] = useState("list");
 
-  const { isOnline, pendingCount, syncing, hydrateFromCache, flushQueue } =
+  const { isOnline, pendingCount, syncing, lastSyncTime, hydrateFromCache, flushQueue } =
     useOfflineSync();
 
   useEffect(() => {
-    fetchAll().catch(() => hydrateFromCache());
+    fetchAll().catch((err) => {
+      // Only hydrate from cache for network failures, not server errors.
+      const isNetworkErr =
+        !err?.response &&
+        (err?.code === "ERR_NETWORK" || err?.message === "Network Error" || !navigator.onLine);
+      if (isNetworkErr) hydrateFromCache();
+    });
   }, [fetchAll, hydrateFromCache]);
 
   // On mobile, automatically switch to editor when a note is opened
   useEffect(() => {
     if (activeNoteId) setMobilePanel("editor");
   }, [activeNoteId]);
+
+  // Restore the last-opened note when Dashboard mounts (e.g. returning from
+  // Profile / Preferences / ChangePassword). activeNoteId may be null if
+  // Zustand was re-initialized; localStorage gives us the reliable fallback.
+  useEffect(() => {
+    if (activeNoteId || notes.length === 0) return;
+
+    const savedId = (() => {
+      try { return localStorage.getItem("noteflow.lastActiveNoteId"); }
+      catch { return null; }
+    })();
+
+    const target =
+      (savedId && (notes.find((n) => String(n.id) === savedId) ||
+                   sharedNotes.find((n) => String(n.id) === savedId))) ||
+      (window.innerWidth >= 640 ? notes[0] : null); // desktop fallback
+
+    if (target) useNoteStore.getState().setActiveNote(target.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notes.length, activeNoteId]);
 
   const handleOpenNote = useCallback((noteId) => {
     useNoteStore.getState().setActiveNote(noteId);
@@ -75,6 +111,15 @@ const Dashboard = () => {
   const handleDeleteNote = useCallback((note) => {
     setDeleteTarget(note);
   }, []);
+
+  // FAB: create a new note and immediately open the editor on mobile
+  const handleNewNote = useCallback(async () => {
+    const note = await createNote();
+    if (note?.id) {
+      setActiveNote(note.id);
+      setMobilePanel("editor");
+    }
+  }, [createNote, setActiveNote]);
 
   const confirmDelete = useCallback(async () => {
     if (deleteTarget) {
@@ -227,12 +272,17 @@ const Dashboard = () => {
             {/* Right side */}
             <div className="flex items-center gap-1.5 sm:gap-2 flex-shrink-0">
               {!isOnline && (
-                <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full"
-                  style={{ background: "rgba(245,158,11,0.12)", color: "rgb(252 211 77)" }}>
-                  <WifiOff size={11} />
-                  <span className="hidden sm:inline">Offline</span>
+              <span
+                className="flex items-center gap-1 text-xs px-2 py-1 rounded-full"
+                style={{ background: "rgba(245,158,11,0.12)", color: "rgb(252 211 77)" }}
+                title={lastSyncTime ? `Last synced: ${lastSyncTime.toLocaleTimeString()}` : "Not yet synced"}
+              >
+                <WifiOff size={11} />
+                <span className="hidden sm:inline">
+                  Offline{pendingCount > 0 ? ` · ${pendingCount} queued` : ""}
                 </span>
-              )}
+              </span>
+            )}
               {isOnline && pendingCount > 0 && (
                 <button
                   onClick={flushQueue}
@@ -304,13 +354,18 @@ const Dashboard = () => {
           </header>
 
           {/* ── List + Editor panel ── */}
-          <div className="flex-1 flex overflow-hidden">
+          {/* On mobile: panels are stacked absolutely and slide via translateX.
+              On desktop (sm+): normal side-by-side flex layout. */}
+          <div className="flex-1 overflow-hidden relative sm:flex">
 
-            {/* NoteList – hidden on mobile when editor is open */}
+            {/* NoteList – slides left when editor opens on mobile */}
             <div
-              className={`flex-shrink-0 h-full transition-all duration-200 ${
-                mobilePanel === "editor" ? "hidden sm:flex" : "flex"
-              }`}
+              className={`
+                absolute inset-0 z-10
+                sm:relative sm:inset-auto sm:z-auto sm:flex-shrink-0 sm:h-full
+                transition-transform duration-300 ease-in-out
+                ${mobilePanel === "editor" ? "-translate-x-full sm:translate-x-0" : "translate-x-0"}
+              `}
             >
               <ErrorBoundary>
                 <NoteList
@@ -320,11 +375,14 @@ const Dashboard = () => {
               </ErrorBoundary>
             </div>
 
-            {/* Editor / Empty state – hidden on mobile when list is open */}
+            {/* Editor – slides in from the right on mobile */}
             <div
-              className={`flex-1 min-w-0 h-full transition-all duration-200 ${
-                mobilePanel === "list" ? "hidden sm:flex flex-col" : "flex flex-col"
-              }`}
+              className={`
+                absolute inset-0 z-10 flex flex-col
+                sm:relative sm:inset-auto sm:z-auto sm:flex-1 sm:min-w-0 sm:h-full
+                transition-transform duration-300 ease-in-out
+                ${mobilePanel === "list" ? "translate-x-full sm:translate-x-0" : "translate-x-0"}
+              `}
             >
               {isLoading ? (
                 <div className="flex-1 p-4 sm:p-6 grid gap-3 grid-cols-1">
@@ -371,8 +429,30 @@ const Dashboard = () => {
               )}
             </div>
           </div>
+
         </div>
       </div>
+
+      {/* ── FAB: New Note (mobile only, hidden when editor is open) ── */}
+      {mobilePanel === "list" && (
+        <button
+          onClick={handleNewNote}
+          className="fixed sm:hidden z-50 flex items-center justify-center animate-fab-pop active:scale-90 transition-transform"
+          style={{
+            bottom: "calc(var(--bottom-nav-height, 60px) + 16px)",
+            right: "16px",
+            width: "52px",
+            height: "52px",
+            borderRadius: "50%",
+            background: "linear-gradient(135deg, rgb(99 102 241), rgb(79 70 229))",
+            boxShadow: "0 4px 20px rgba(99, 102, 241, 0.5)",
+            color: "white",
+          }}
+          aria-label="New note"
+        >
+          <Plus size={22} strokeWidth={2.5} />
+        </button>
+      )}
 
       {/* ── Mobile bottom navigation ── */}
       <div className="mobile-bottom-nav sm:hidden">

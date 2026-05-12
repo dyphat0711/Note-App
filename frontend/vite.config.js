@@ -90,12 +90,24 @@ export default defineConfig({
       },
     },
   },
-  test: {
-    environment: "jsdom",
-    globals: true,
-    setupFiles: ["./src/test/setup.js"],
-    css: false,
-    include: ["src/**/*.{test,spec}.{js,jsx}"],
-    exclude: ["node_modules", "dist", "e2e/**"],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Core React runtime — rarely changes between deploys
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          // Rich-text editor — large and stable
+          "vendor-tiptap": [
+            "@tiptap/react",
+            "@tiptap/starter-kit",
+            "@tiptap/extension-underline",
+            "@tiptap/extension-image",
+            "@tiptap/extension-placeholder",
+          ],
+          // Utility libraries
+          "vendor-utils": ["axios", "zustand", "react-hot-toast", "localforage", "lucide-react"],
+        },
+      },
+    },
   },
 });

@@ -25,6 +25,9 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+// Lightweight connectivity probe used by the PWA offline detector (no auth, no rate limit overhead).
+Route::get('/ping', fn () => response()->json(['ok' => true]))->name('ping');
+
 // Public auth routes (rate limited)
 Route::middleware('throttle:10,1')->group(function (): void {
     Route::post('/register', [AuthController::class, 'register']);

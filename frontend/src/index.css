@@ -40,6 +40,9 @@
   /* Sidebar animation */
   --sidebar-width: 260px;
   --sidebar-transition: 280ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Mobile bottom nav height (used to position FAB above it) */
+  --bottom-nav-height: 60px;
 }
 
 .dark {
@@ -244,6 +247,12 @@
   }
 }
 
+@keyframes fabPop {
+  0%   { opacity: 0; transform: scale(0.4) translateY(16px); }
+  60%  { opacity: 1; transform: scale(1.12) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -255,6 +264,7 @@
 .animate-fade-in-up     { animation: fadeInUp 220ms cubic-bezier(0.4, 0, 0.2, 1) both; }
 .animate-scale-in       { animation: scaleIn  180ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 .animate-slide-down     { animation: slideDown 200ms cubic-bezier(0.4, 0, 0.2, 1) both; }
+.animate-fab-pop        { animation: fabPop 350ms cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
 /* Staggered children for note cards */
 .note-list-item:nth-child(1)  { animation-delay: 0ms; }
@@ -279,6 +289,7 @@
 /* ── Mobile bottom navigation ── */
 .mobile-bottom-nav {
   @apply fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-2 py-2;
+  height: var(--bottom-nav-height);
   background: rgba(var(--dark-600), 0.9);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -475,3 +486,78 @@
     width: 300px !important;
   }
 }
+
+/* ── Shared note permission badges ── */
+.shared-permission-badge {
+  @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wide transition-all duration-200;
+}
+
+.shared-permission-edit {
+  background: rgba(59, 130, 246, 0.12);
+  color: rgb(96, 165, 250);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+}
+
+.shared-permission-read {
+  background: rgba(148, 163, 184, 0.10);
+  color: rgb(148, 163, 184);
+  border: 1px solid rgba(148, 163, 184, 0.20);
+}
+
+/* ── Typing indicator animation ── */
+@keyframes typingDot {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+.typing-indicator {
+  @apply inline-flex items-center gap-0.5;
+}
+
+.typing-indicator span {
+  @apply w-1 h-1 rounded-full bg-accent-400;
+  animation: typingDot 1.2s ease-in-out infinite;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* ── Presence avatars stack ── */
+.presence-avatar-stack {
+  @apply flex -space-x-2;
+}
+
+.presence-avatar {
+  @apply w-6 h-6 rounded-full border-2 flex items-center justify-center text-[10px] font-semibold transition-all duration-200;
+  border-color: rgb(var(--dark-500));
+}
+
+.presence-avatar:hover {
+  transform: translateY(-2px);
+  z-index: 10;
+}
+
+/* ── Collaboration banner ── */
+.collab-banner {
+  @apply flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  color: rgb(147, 197, 253);
+}
+
+/* ── Live indicator pulse ── */
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+.live-indicator {
+  @apply w-1.5 h-1.5 rounded-full bg-green-400;
+  animation: livePulse 2s ease-in-out infinite;
+}
+

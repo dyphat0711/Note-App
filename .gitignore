@@ -1,170 +1,75 @@
-# ===========================
-# NoteFlow - .gitignore
-# ===========================
+# ─────────────────────────────────────────
+# NoteFlow — Root .gitignore
+# Covers both backend/ and frontend/ trees
+# ─────────────────────────────────────────
 
-# ===========================
-# Dependencies
-# ===========================
-/vendor/
-/node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
+# ── Dependencies ──────────────────────────
+vendor/
+node_modules/
 
-# ===========================
-# Environment Variables
-# ===========================
+# ── Environment ───────────────────────────
 .env
 .env.local
 .env.*.local
+.env.docker
 !.env.example
-!.env.example.*
+!.env.docker.example
 
-# ===========================
-# IDE & Editor
-# ===========================
+# ── IDE & Editor ──────────────────────────
 .vscode/
 .idea/
+.fleet/
+.nova/
+.zed/
 *.swp
 *.swo
 *~
-.project
-.settings/
-.classpath
 *.sublime-workspace
 *.sublime-project
 
-# ===========================
-# Operating System
-# ===========================
+# ── OS ────────────────────────────────────
 .DS_Store
-.DS_Store?
 ._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 desktop.ini
-*.lnk
-[Oo]bject[Pp]rofile*
+ehthumbs.db
 
-# ===========================
-# Logs
-# ===========================
+# ── Logs ──────────────────────────────────
 *.log
-storage/logs/*.log
-storage/logs/laravel.log
+storage/logs/
 
-# ===========================
-# Backend - Laravel Storage
-# ===========================
-/storage/framework/cache/data/*
+# ── Backend: Laravel runtime ──────────────
+storage/framework/cache/data/*
 !storage/framework/cache/data/.gitkeep
-/storage/framework/sessions/*
+storage/framework/sessions/*
 !storage/framework/sessions/.gitkeep
-/storage/framework/testing/*
+storage/framework/testing/*
 !storage/framework/testing/.gitkeep
-/storage/framework/views/*
+storage/framework/views/*
 !storage/framework/views/.gitkeep
-/storage/app/public/*
+storage/app/public/*
 !storage/app/public/.gitkeep
-/storage/app/private/*
+storage/app/private/*
 !storage/app/private/.gitkeep
-/storage/app/*
-!storage/app/.gitkeep
+storage/pail/
+bootstrap/cache/*.php
+public/storage
+public/hot
 
-# ===========================
-# Backend - Laravel Bootstrap Cache
-# ===========================
-/bootstrap/cache/*
-!bootstrap/cache/.gitignore
-
-# ===========================
-# Backend - Database
-# ===========================
+# ── Backend: Database ─────────────────────
 database/*.sqlite
 database/*.sqlite-journal
 
-# ===========================
-# Backend - Compiled
-# ===========================
-/bootstrap/cache/*.php
-/config/*.php
-/public/storage
+# ── Frontend: Build output ────────────────
+frontend/dist/
+frontend/.vite/
 
-# ===========================
-# Frontend - Build Output
-# ===========================
-/dist/
-/build/
-/.vite/
-
-# ===========================
-# Frontend - Coverage
-# ===========================
-/coverage/
-coverage-final.json
-coverage-summary.json
-
-# ===========================
-# Frontend - Testing
-# ===========================
-cypress/videos/
-cypress/screenshots/
-.nyc_output/
-
-# ===========================
-# Frontend - Misc
-# ===========================
-package-lock.json
-yarn.lock
-pnpm-lock.yaml
-
-# ===========================
-# Debug & Profiling
-# ===========================
-*.phpunit.result.cache
-.phpunit.result.cache
-.pnp
-.pnp.js
-
-# ===========================
-# Docker
-# ===========================
+# ── Docker ────────────────────────────────
 docker-compose.override.yml
-.env.docker
 
-# ===========================
-# Temporary Files
-# ===========================
-*.tmp
-*.temp
-tmp/
-temp/
-
-# ===========================
-# Security
-# ===========================
+# ── Security ──────────────────────────────
 *.pem
 *.key
 *.crt
-*.p12
-*.pfx
 auth.json
 composer-auth.json
-
-# ===========================
-# CI/CD
-# ===========================
-.github/workflows/*.log
-.circleci/config.yml
-.gitlab-ci.yml
-.travis.yml
-appveyor.yml
-
-# ===========================
-# Documentation
-# ===========================
-docs/*.md
-!docs/index.md

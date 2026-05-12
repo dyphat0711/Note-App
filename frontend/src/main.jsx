@@ -10,15 +10,27 @@ createRoot(document.getElementById("root")).render(
   </StrictMode>,
 );
 
-// Register service worker for offline + auto-update.
+/**
+ * Service Worker registration.
+ *
+ * onNeedRefresh  – a new SW version is waiting to activate.  We prompt the
+ *                  user so they can reload at a convenient time instead of
+ *                  silently swapping assets under them.
+ * onOfflineReady – the app shell is now fully cached; the user can go
+ *                  offline and still open NoteFlow.
+ */
 const updateSW = registerSW({
   onNeedRefresh() {
-    // Auto-update silently in production; the user reload will pick up new version.
+    // Use a native confirm so we don't depend on react-hot-toast being
+    // initialised yet (this callback can fire very early).
+    if (window.confirm("A new version of NoteFlow is available. Reload now?")) {
+      updateSW(true);
+    }
   },
   onOfflineReady() {
-    // App is now usable offline.
+    console.info("[NoteFlow] App is ready to work offline.");
   },
 });
 
-// Export so the App can call `updateSW()` if a future "update available" prompt is wanted.
+// Export so App can trigger a manual update check if needed.
 export { updateSW };
