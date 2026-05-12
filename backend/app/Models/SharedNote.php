@@ -20,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon $updated_at
  * @property-read Note $note
  * @property-read User $owner
+ * @property-read User|null $sharedWithUser
  * @property-read bool $can_edit
  */
 class SharedNote extends Model
@@ -48,6 +49,20 @@ class SharedNote extends Model
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'owner_id');
+    }
+
+    /**
+     * The user account that this note was shared with.
+     * Uses `shared_with_email` as the foreign key matched against `users.email`.
+     * Eager-loading via `shares.sharedWithUser` eliminates the N+1 query that
+     * `SharedNoteResource` previously issued per share record.
+     *
+     * @return BelongsTo<User, $this>
+     */
+    public function sharedWithUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'shared_with_email', 'email')
+            ->select(['id', 'display_name', 'avatar_path', 'email']);
     }
 
     /**

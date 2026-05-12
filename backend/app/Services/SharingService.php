@@ -86,7 +86,10 @@ class SharingService
                 'user:id,display_name,email,avatar_path',
                 // Only attach the share record relevant to this user, so they know
                 // their own permission without leaking other recipients' details.
-                'shares' => fn ($q) => $q->where('shared_with_email', $user->email),
+                // Eager-load sharedWithUser on each share to avoid N+1 in SharedNoteResource.
+                'shares' => fn ($q) => $q
+                    ->where('shared_with_email', $user->email)
+                    ->with('sharedWithUser'),
             ])
             ->ordered()
             ->get();

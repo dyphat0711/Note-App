@@ -1,4 +1,7 @@
-import React, { useState, useCallback, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useShallow } from "zustand/react/shallow";
+import * as ReactWindow from "react-window";
+const FixedSizeList = ReactWindow.List;
 import {
   Search,
   Grid3X3,
@@ -60,20 +63,43 @@ function getExcerpt(content, maxLength = 80) {
     : clean;
 }
 
+// ── Lightweight client-side search (used for short queries ≤2 chars) ──
+function clientSearch(notes, query) {
+  const q = query.toLowerCase();
+  return notes.filter((n) => {
+    if (n.title && n.title.toLowerCase().includes(q)) return true;
+    if (n.content) {
+      const plain = String(n.content).replace(/<[^>]*>/g, " ").toLowerCase();
+      return plain.includes(q);
+    }
+    return false;
+  });
+}
+
+// When the list has more items than this threshold, switch to virtual scrolling
+// (list mode only — grid mode uses CSS grid which react-window doesn't support).
+const VIRTUAL_THRESHOLD = 50;
+// Estimated row heights for virtual list (px)
+const LIST_ITEM_HEIGHT = 80;
+const CLIENT_SEARCH_MAX_LEN = 2; // queries this length or shorter use client-side search
+
 const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
-  const viewMode = useNoteStore((s) => s.viewMode);
-  const searchQuery = useNoteStore((s) => s.searchQuery);
+  // Primitive selectors — each returns a scalar, no unnecessary re-renders.
+  const viewMode        = useNoteStore((s) => s.viewMode);
+  const searchQuery     = useNoteStore((s) => s.searchQuery);
   const selectedLabelIds = useNoteStore((s) => s.selectedLabelIds);
-  const activeSection = useNoteStore((s) => s.activeSection);
-  const labels = useNoteStore((s) => s.labels);
-  const notes = useNoteStore((s) => s.notes);
-  const sharedNotes = useNoteStore((s) => s.sharedNotes);
-  const activeNoteId = useNoteStore((s) => s.activeNoteId);
-  const setViewMode = useNoteStore((s) => s.setViewMode);
-  const setSearchQuery = useNoteStore((s) => s.setSearchQuery);
-  const togglePin = useNoteStore((s) => s.togglePin);
+  const activeSection   = useNoteStore((s) => s.activeSection);
+  const activeNoteId    = useNoteStore((s) => s.activeNoteId);
+  const setViewMode     = useNoteStore((s) => s.setViewMode);
+  const setSearchQuery  = useNoteStore((s) => s.setSearchQuery);
+  const togglePin       = useNoteStore((s) => s.togglePin);
   const toggleLabelFilter = useNoteStore((s) => s.toggleLabelFilter);
   const clearLabelFilters = useNoteStore((s) => s.clearLabelFilters);
+
+  // Array selectors — use useShallow so reference equality is checked element-by-element.
+  const { notes, sharedNotes, labels } = useNoteStore(
+    useShallow((s) => ({ notes: s.notes, sharedNotes: s.sharedNotes, labels: s.labels }))
+  );
 
   const [localSearch, setLocalSearch] = useState(searchQuery);
   const debouncedSearch = useDebounce(localSearch, 300);
@@ -84,28 +110,37 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
     setSearchQuery(debouncedSearch);
   }, [debouncedSearch, setSearchQuery]);
 
+  // ── Hybrid search ────────────────────────────────────────────────────────
+  // Short queries (≤ CLIENT_SEARCH_MAX_LEN chars): instant client-side filter.
+  // Longer queries: debounce + server FULLTEXT search with AbortController.
   useEffect(() => {
-    let cancelled = false;
-    if (!debouncedSearch.trim()) {
+    const q = debouncedSearch.trim();
+    if (!q) {
       setServerSearchResults(null);
-      return () => { cancelled = true; };
+      return;
     }
+    // Short queries → client-side (instant, no server round-trip)
+    if (q.length <= CLIENT_SEARCH_MAX_LEN) {
+      setServerSearchResults(clientSearch(notes, q));
+      setSearching(false);
+      return;
+    }
+    // Longer queries → server FULLTEXT search
+    const controller = new AbortController();
     setSearching(true);
     noteAPI
-      .search(debouncedSearch)
+      .search(debouncedSearch, { signal: controller.signal })
       .then(({ data }) => {
-        if (!cancelled) {
-          setServerSearchResults((data.data || []).map(transformNote));
+        setServerSearchResults((data.data || []).map(transformNote));
+      })
+      .catch((err) => {
+        if (err?.code !== "ERR_CANCELED" && err?.name !== "CanceledError") {
+          setServerSearchResults([]);
         }
       })
-      .catch(() => {
-        if (!cancelled) setServerSearchResults([]);
-      })
-      .finally(() => {
-        if (!cancelled) setSearching(false);
-      });
-    return () => { cancelled = true; };
-  }, [debouncedSearch]);
+      .finally(() => setSearching(false));
+    return () => controller.abort();
+  }, [debouncedSearch, notes]);
 
   const sourceNotes = useMemo(() => {
     if (activeSection === "shared") return Array.isArray(sharedNotes) ? sharedNotes : [];
@@ -316,56 +351,147 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
         </div>
       </div>
 
-      {/* Note List */}
-      <div
-        className={`flex-1 overflow-y-auto p-3 ${
-          isGrid ? "grid grid-cols-2 gap-2.5 auto-rows-min" : "space-y-1.5"
-        }`}
-        role="list"
-      >
-        {filteredNotes.length === 0 ? (
-          <div
-            className={`flex flex-col items-center justify-center py-14 text-dark-50 animate-fade-in-up ${
-              isGrid ? "col-span-2" : ""
-            }`}
-          >
-            <FileText size={28} className="mb-3 opacity-30" />
-            <p className="text-sm text-dark-50/70">No notes found</p>
-          </div>
-        ) : (
-          filteredNotes.map((note, idx) =>
-            isSharedSection ? (
-              <SharedNoteCard
-                key={note.id}
-                note={note}
-                isGrid={isGrid}
-                isActive={note.id === activeNoteId}
-                onOpen={onOpenNote}
-                formatDate={formatDate}
-                formatRelativeDate={formatRelativeDate}
-                getExcerpt={getExcerpt}
-                index={idx}
-              />
-            ) : (
-              <NoteCard
-                key={note.id}
-                note={note}
-                isGrid={isGrid}
-                isActive={note.id === activeNoteId}
-                onOpen={onOpenNote}
-                onTogglePin={handlePinToggle}
-                onDelete={handleDeleteClick}
-                formatDate={formatDate}
-                getExcerpt={getExcerpt}
-                index={idx}
-              />
-            )
-          )
-        )}
-      </div>
+      {/* Note List — uses virtual scrolling in list mode for 50+ notes */}
+      <VirtualizedNoteList
+        filteredNotes={filteredNotes}
+        isGrid={isGrid}
+        isSharedSection={isSharedSection}
+        activeNoteId={activeNoteId}
+        onOpenNote={onOpenNote}
+        handlePinToggle={handlePinToggle}
+        handleDeleteClick={handleDeleteClick}
+      />
     </div>
   );
 });
+
+
+/**
+ * Renders the note list. For list mode with many items, uses react-window
+ * FixedSizeList for O(visible) DOM nodes instead of O(n). Grid mode falls
+ * back to standard rendering since CSS grid is not supported by react-window.
+ */
+const VirtualizedNoteList = React.memo(({ filteredNotes, isGrid, isSharedSection, activeNoteId, onOpenNote, handlePinToggle, handleDeleteClick }) => {
+  const containerRef = useRef(null);
+  const [containerHeight, setContainerHeight] = useState(400);
+
+  // Observe container resize to keep virtual list height in sync.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerHeight(entry.contentRect.height);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const useVirtual = !isGrid && filteredNotes.length > VIRTUAL_THRESHOLD;
+
+  if (filteredNotes.length === 0) {
+    return (
+      <div
+        ref={containerRef}
+        className={`flex-1 overflow-y-auto p-3 ${isGrid ? "grid grid-cols-2 gap-2.5 auto-rows-min" : "space-y-1.5"}`}
+        role="list"
+      >
+        <div className={`flex flex-col items-center justify-center py-14 text-dark-50 animate-fade-in-up ${isGrid ? "col-span-2" : ""}`}>
+          <FileText size={28} className="mb-3 opacity-30" />
+          <p className="text-sm text-dark-50/70">No notes found</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Virtual scrolling (list mode, 50+ notes) ──
+  if (useVirtual) {
+    return (
+      <div ref={containerRef} className="flex-1 overflow-hidden" role="list">
+        <FixedSizeList
+          height={containerHeight}
+          width="100%"
+          itemCount={filteredNotes.length}
+          itemSize={LIST_ITEM_HEIGHT}
+          overscanCount={8}
+          style={{ padding: "12px" }}
+        >
+          {({ index, style }) => {
+            const note = filteredNotes[index];
+            return (
+              <div style={{ ...style, paddingBottom: "6px" }}>
+                {isSharedSection ? (
+                  <SharedNoteCard
+                    note={note}
+                    isGrid={false}
+                    isActive={note.id === activeNoteId}
+                    onOpen={onOpenNote}
+                    formatDate={formatDate}
+                    formatRelativeDate={formatRelativeDate}
+                    getExcerpt={getExcerpt}
+                    index={index}
+                  />
+                ) : (
+                  <NoteCard
+                    note={note}
+                    isGrid={false}
+                    isActive={note.id === activeNoteId}
+                    onOpen={onOpenNote}
+                    onTogglePin={handlePinToggle}
+                    onDelete={handleDeleteClick}
+                    formatDate={formatDate}
+                    getExcerpt={getExcerpt}
+                    index={index}
+                  />
+                )}
+              </div>
+            );
+          }}
+        </FixedSizeList>
+      </div>
+    );
+  }
+
+  // ── Standard rendering (grid mode, or few items in list mode) ──
+  return (
+    <div
+      ref={containerRef}
+      className={`flex-1 overflow-y-auto p-3 ${isGrid ? "grid grid-cols-2 gap-2.5 auto-rows-min" : "space-y-1.5"}`}
+      role="list"
+    >
+      {filteredNotes.map((note, idx) =>
+        isSharedSection ? (
+          <SharedNoteCard
+            key={note.id}
+            note={note}
+            isGrid={isGrid}
+            isActive={note.id === activeNoteId}
+            onOpen={onOpenNote}
+            formatDate={formatDate}
+            formatRelativeDate={formatRelativeDate}
+            getExcerpt={getExcerpt}
+            index={idx}
+          />
+        ) : (
+          <NoteCard
+            key={note.id}
+            note={note}
+            isGrid={isGrid}
+            isActive={note.id === activeNoteId}
+            onOpen={onOpenNote}
+            onTogglePin={handlePinToggle}
+            onDelete={handleDeleteClick}
+            formatDate={formatDate}
+            getExcerpt={getExcerpt}
+            index={idx}
+          />
+        )
+      )}
+    </div>
+  );
+});
+VirtualizedNoteList.displayName = "VirtualizedNoteList";
 
 
 /* ── SharedNoteCard: dedicated card for the "Shared with me" section ── */
@@ -460,6 +586,7 @@ const SharedNoteCard = React.memo(
               <img
                 src={`/storage/${ownerAvatarPath}`}
                 alt={ownerName}
+                loading="lazy"
                 className="w-4.5 h-4.5 rounded-full object-cover flex-shrink-0"
                 style={{ width: "18px", height: "18px" }}
               />
@@ -546,6 +673,12 @@ const NoteCard = React.memo(
     const metaStyle    = hasCustomColor ? { color: "#64748b" } : undefined;
     const excerptStyle = hasCustomColor ? { color: "#475569" } : undefined;
 
+    // Memoize the excerpt so the regex doesn't run on every render.
+    const excerpt = useMemo(
+      () => note.hasPassword ? "🔒 Locked" : getExcerpt(note.content, isGrid ? 160 : 80),
+      [note.content, note.hasPassword, isGrid, getExcerpt],
+    );
+
     return (
       <div
         onClick={() => onOpen(note.id)}
@@ -623,14 +756,14 @@ const NoteCard = React.memo(
                 className={`text-xs line-clamp-4 mb-2 ${!hasCustomColor ? "note-card-excerpt" : ""}`}
                 style={excerptStyle}
               >
-                {note.hasPassword ? "🔒 Locked" : getExcerpt(note.content, 160)}
+                {excerpt}
               </p>
             ) : (
               <p
                 className={`text-xs truncate ${!hasCustomColor ? "note-card-excerpt" : ""}`}
                 style={excerptStyle}
               >
-                {note.hasPassword ? "🔒 Locked" : getExcerpt(note.content)}
+                {excerpt}
               </p>
             )}
 
@@ -690,6 +823,18 @@ const NoteCard = React.memo(
       </div>
     );
   },
+  // Custom comparator — only re-render when fields used in this component change.
+  (prev, next) =>
+    prev.note.id          === next.note.id          &&
+    prev.note.title       === next.note.title       &&
+    prev.note.content     === next.note.content     &&
+    prev.note.updatedAt   === next.note.updatedAt   &&
+    prev.note.isPinned    === next.note.isPinned    &&
+    prev.note.color       === next.note.color       &&
+    prev.note.isShared    === next.note.isShared    &&
+    prev.note.hasPassword === next.note.hasPassword &&
+    prev.isActive         === next.isActive         &&
+    prev.isGrid           === next.isGrid,
 );
 
 SharedNoteCard.displayName = "SharedNoteCard";

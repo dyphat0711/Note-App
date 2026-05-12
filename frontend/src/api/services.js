@@ -32,7 +32,7 @@ export const noteAPI = {
   create: (data) => api.post("/notes", data),
   update: (id, data) => api.put(`/notes/${id}`, data),
   delete: (id) => api.delete(`/notes/${id}`),
-  search: (q) => api.get("/notes/search", { params: { q } }),
+  search: (q, config = {}) => api.get("/notes/search", { params: { q }, ...config }),
   togglePin: (id) => api.patch(`/notes/${id}/pin`),
   setPassword: (id, payload) => api.patch(`/notes/${id}/password`, payload),
   unlock: (id, password) => api.post(`/notes/${id}/unlock`, { password }),

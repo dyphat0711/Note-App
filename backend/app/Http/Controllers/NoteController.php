@@ -75,8 +75,9 @@ class NoteController extends Controller
 
         $note = $this->noteService->updateNote($note, $request->validated());
 
-        // Broadcast change to collaborators when the note is shared (Phase 3 wires Reverb).
-        if (class_exists(\App\Events\NoteUpdated::class) && $note->shares()->exists()) {
+        // Broadcast change to collaborators when the note is shared.
+        // Use the already-loaded `shares` collection (no extra DB query).
+        if (class_exists(\App\Events\NoteUpdated::class) && $note->shares->isNotEmpty()) {
             event(new \App\Events\NoteUpdated($note, (int) $request->user()->id));
         }
 

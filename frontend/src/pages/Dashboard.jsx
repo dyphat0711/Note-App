@@ -396,6 +396,7 @@ const Dashboard = () => {
                 ) : (
                   <ErrorBoundary>
                     <NoteEditor
+                      key={activeNote.id}
                       note={activeNote}
                       onClose={() => {
                         useNoteStore.getState().setActiveNote(null);

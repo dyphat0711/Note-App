@@ -91,6 +91,12 @@ export default defineConfig({
     },
   },
   build: {
+    // terser produces smaller output than the default esbuild (~5-10%),
+    // at the cost of slightly slower production builds.
+    minify: "terser",
+    terserOptions: {
+      compress: { drop_console: true, drop_debugger: true },
+    },
     rollupOptions: {
       output: {
         manualChunks: {
@@ -104,8 +110,12 @@ export default defineConfig({
             "@tiptap/extension-image",
             "@tiptap/extension-placeholder",
           ],
+          // WebSocket / realtime — only needed on shared notes, loaded lazily
+          "vendor-realtime": ["laravel-echo", "pusher-js"],
+          // Offline storage — only needed when PWA sync kicks in
+          "vendor-offline": ["localforage"],
           // Utility libraries
-          "vendor-utils": ["axios", "zustand", "react-hot-toast", "localforage", "lucide-react"],
+          "vendor-utils": ["axios", "zustand", "react-hot-toast", "lucide-react"],
         },
       },
     },

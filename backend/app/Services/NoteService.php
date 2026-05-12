@@ -8,6 +8,7 @@ use App\Models\Label;
 use App\Models\Note;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class NoteService
@@ -19,14 +20,36 @@ class NoteService
      */
     public function getUserNotes(User $user, array $labelIds = []): Collection
     {
+        // When filtering by labels, skip cache (low-traffic, varied keys).
+        if (! empty($labelIds)) {
+            return $this->buildUserNotesQuery($user, $labelIds)->get();
+        }
+
+        // Cache the full note list for 60 s (MySQL production path).
+        // The cache key is invalidated on any create / update / delete.
+        return Cache::remember(
+            "notes.user.{$user->id}",
+            60,
+            fn () => $this->buildUserNotesQuery($user)->get(),
+        );
+    }
+
+    /**
+     * Build the base query for a user's notes with eager-loaded relationships.
+     *
+     * @param  array<int>  $labelIds
+     * @return \Illuminate\Database\Eloquent\Builder<Note>
+     */
+    private function buildUserNotesQuery(User $user, array $labelIds = []): \Illuminate\Database\Eloquent\Builder
+    {
         $query = $user->notes()
-            ->with(['labels', 'shares', 'attachments']);
+            ->with(['labels', 'shares.sharedWithUser', 'attachments']);
 
         if (! empty($labelIds)) {
             $query->whereHas('labels', fn ($q) => $q->whereIn('labels.id', $labelIds));
         }
 
-        return $query->ordered()->get();
+        return $query->ordered();
     }
 
     /**
@@ -46,9 +69,9 @@ class NoteService
     {
         return DB::transaction(function () use ($user, $data): Note {
             $note = $user->notes()->create([
-                'title' => $data['title'],
-                'content' => $data['content'] ?? null,
-                'color' => $data['color'] ?? null,
+                'title'     => $data['title'],
+                'content'   => $data['content'] ?? null,
+                'color'     => $data['color'] ?? null,
                 'is_pinned' => false,
             ]);
 
@@ -56,7 +79,10 @@ class NoteService
                 $this->attachLabels($note, $data['label_ids'], $user);
             }
 
-            return $note->load(['labels', 'shares', 'attachments']);
+            // Invalidate the cached note list so the new note appears immediately.
+            Cache::forget("notes.user.{$user->id}");
+
+            return $note->load(['labels', 'shares.sharedWithUser', 'attachments']);
         });
     }
 
@@ -85,11 +111,35 @@ class NoteService
                 $note->update($updateData);
             }
 
-            if (array_key_exists('label_ids', $data)) {
+            $labelsChanged = array_key_exists('label_ids', $data);
+            if ($labelsChanged) {
                 $this->syncLabels($note, $data['label_ids'] ?? [], $note->user);
             }
 
-            return $note->load(['labels', 'shares', 'attachments']);
+            // Invalidate the cached note list for this user.
+            Cache::forget("notes.user.{$note->user_id}");
+
+            // Only reload relations that may have changed to avoid redundant queries.
+            // shares and attachments are untouched by this operation so we
+            // reuse what is already loaded (if available) and only reload labels
+            // when the label set was actually modified.
+            if ($labelsChanged) {
+                return $note->load(['labels', 'shares.sharedWithUser', 'attachments']);
+            }
+
+            // Ensure relations are present on the model (they may already be loaded
+            // from the controller's route-model binding or earlier eager load).
+            if (! $note->relationLoaded('shares')) {
+                $note->load('shares.sharedWithUser');
+            }
+            if (! $note->relationLoaded('labels')) {
+                $note->load('labels');
+            }
+            if (! $note->relationLoaded('attachments')) {
+                $note->load('attachments');
+            }
+
+            return $note;
         });
     }
 
@@ -110,14 +160,15 @@ class NoteService
      */
     public function togglePin(Note $note): Note
     {
-        return DB::transaction(function () use ($note): Note {
-            $note->update([
-                'is_pinned' => ! $note->is_pinned,
-                'pinned_at' => $note->is_pinned ? null : now(),
-            ]);
+        // Single-row UPDATE — no transaction needed.
+        $note->update([
+            'is_pinned' => ! $note->is_pinned,
+            'pinned_at' => $note->is_pinned ? null : now(),
+        ]);
 
-            return $note->refresh();
-        });
+        Cache::forget("notes.user.{$note->user_id}");
+
+        return $note->refresh();
     }
 
     /**
@@ -126,7 +177,7 @@ class NoteService
     public function searchNotes(User $user, string $keyword): Collection
     {
         return $user->notes()
-            ->with(['labels', 'shares', 'attachments'])
+            ->with(['labels', 'shares.sharedWithUser', 'attachments'])
             ->search($keyword)
             ->ordered()
             ->get();
@@ -148,6 +199,9 @@ class NoteService
 
             // Delete shares (will cascade via foreign key)
             $note->shares()->delete();
+
+            // Invalidate the cached note list.
+            Cache::forget("notes.user.{$note->user_id}");
 
             return $note->delete();
         });

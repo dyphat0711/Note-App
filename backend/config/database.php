@@ -61,6 +61,10 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
+                // Persistent connections: reuse existing TCP socket instead of
+                // re-connecting after MySQL drops idle connections (wait_timeout).
+                // Eliminates the ~500ms reconnection spikes visible in the request log.
+                PDO::ATTR_PERSISTENT => env('DB_PERSISTENT', false),
             ]) : [],
         ],
 
