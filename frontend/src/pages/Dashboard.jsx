@@ -40,6 +40,7 @@ const Dashboard = () => {
   const isLoading = useNoteStore((s) => s.isLoading);
   const unlockedNoteIds = useNoteStore((s) => s.unlockedNoteIds);
   const fetchAll = useNoteStore((s) => s.fetchAll);
+  const prepareNotesForUser = useNoteStore((s) => s.prepareForUser);
   const createNote = useNoteStore((s) => s.createNote);
   const setActiveNote = useNoteStore((s) => s.setActiveNote);
   const activeSection = useNoteStore((s) => s.activeSection);
@@ -69,6 +70,8 @@ const Dashboard = () => {
     useOfflineSync();
 
   useEffect(() => {
+    if (!user?.id) return;
+    prepareNotesForUser(user.id);
     fetchAll().catch((err) => {
       // Only hydrate from cache for network failures, not server errors.
       const isNetworkErr =
@@ -76,7 +79,7 @@ const Dashboard = () => {
         (err?.code === "ERR_NETWORK" || err?.message === "Network Error" || !navigator.onLine);
       if (isNetworkErr) hydrateFromCache();
     });
-  }, [fetchAll, hydrateFromCache]);
+  }, [user?.id, fetchAll, hydrateFromCache, prepareNotesForUser]);
 
   // On mobile, automatically switch to editor when a note is opened
   useEffect(() => {

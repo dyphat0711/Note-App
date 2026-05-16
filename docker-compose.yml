@@ -8,7 +8,7 @@ services:
       MYSQL_DATABASE: ${DB_DATABASE:-noteflow}
       MYSQL_USER: ${DB_USERNAME:-noteflow}
       MYSQL_PASSWORD: ${DB_PASSWORD:-secret}
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-secret}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root-secret}
       MYSQL_ALLOW_EMPTY_PASSWORD: "no"
     ports:
       - "${DB_PORT:-3306}:3306"
@@ -17,7 +17,7 @@ services:
       # MySQL performance tuning (InnoDB buffer, query cache, etc.)
       - ./docker/mysql/my.cnf:/etc/mysql/conf.d/custom.cnf:ro
     healthcheck:
-      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_PASSWORD:-secret}" ]
+      test: [ "CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD:-root-secret}" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,8 +60,16 @@ services:
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=redis
       - SESSION_DRIVER=redis
+      - BROADCAST_CONNECTION=reverb
+      - REVERB_APP_ID=${REVERB_APP_ID:-noteflow}
+      - REVERB_APP_KEY=${REVERB_APP_KEY:-noteflow-key}
+      - REVERB_APP_SECRET=${REVERB_APP_SECRET:-noteflow-secret}
+      - REVERB_HOST=reverb
+      - REVERB_PORT=8080
+      - REVERB_SCHEME=http
     volumes:
       - ./backend:/var/www/html
+      - backend_vendor:/var/www/html/vendor
       - ./docker/php-fpm/php.ini:/usr/local/etc/php/conf.d/custom.ini
     depends_on:
       mysql:
@@ -82,7 +90,6 @@ services:
     environment:
       - APP_ENV=${APP_ENV:-local}
       - APP_DEBUG=${APP_DEBUG:-false}
-      - APP_KEY=${APP_KEY}
       - DB_HOST=mysql
       - DB_DATABASE=${DB_DATABASE:-noteflow}
       - DB_USERNAME=${DB_USERNAME:-noteflow}
@@ -90,8 +97,16 @@ services:
       - REDIS_HOST=redis
       - CACHE_STORE=redis
       - QUEUE_CONNECTION=redis
+      - BROADCAST_CONNECTION=reverb
+      - REVERB_APP_ID=${REVERB_APP_ID:-noteflow}
+      - REVERB_APP_KEY=${REVERB_APP_KEY:-noteflow-key}
+      - REVERB_APP_SECRET=${REVERB_APP_SECRET:-noteflow-secret}
+      - REVERB_HOST=reverb
+      - REVERB_PORT=8080
+      - REVERB_SCHEME=http
     volumes:
       - ./backend:/var/www/html
+      - backend_vendor:/var/www/html/vendor
       - ./docker/php-fpm/php.ini:/usr/local/etc/php/conf.d/custom.ini
     depends_on:
       mysql:
@@ -112,7 +127,6 @@ services:
     environment:
       - APP_ENV=${APP_ENV:-local}
       - APP_DEBUG=${APP_DEBUG:-false}
-      - APP_KEY=${APP_KEY}
       - DB_HOST=mysql
       - DB_DATABASE=${DB_DATABASE:-noteflow}
       - DB_USERNAME=${DB_USERNAME:-noteflow}
@@ -127,6 +141,7 @@ services:
       - REVERB_SCHEME=http
     volumes:
       - ./backend:/var/www/html
+      - backend_vendor:/var/www/html/vendor
     ports:
       - "${REVERB_HOST_PORT:-8080}:8080"
     depends_on:
@@ -156,10 +171,43 @@ services:
     networks:
       - noteflow-network
 
+  # phpMyAdmin — database management tool
+  phpmyadmin:
+    image: phpmyadmin:latest
+    profiles: ["tools"]
+    container_name: noteflow-phpmyadmin
+    restart: unless-stopped
+    environment:
+      - PMA_HOST=mysql
+      - PMA_USER=${DB_USERNAME:-noteflow}
+      - PMA_PASSWORD=${DB_PASSWORD:-secret}
+      - PMA_ARBITRARY=0
+    ports:
+      - "${PHPMYADMIN_PORT:-8081}:80"
+    networks:
+      - noteflow-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # Tooling container for building frontend
+  frontend-builder:
+    image: node:18-alpine
+    profiles: ["tools"]
+    volumes:
+      - ./frontend:/app
+      - ./.env:/app/.env
+    working_dir: /app
+    command: sh -c "npm install && npm run build"
+    networks:
+      - noteflow-network
+
 volumes:
   mysql_data:
     driver: local
   redis_data:
+    driver: local
+  backend_vendor:
     driver: local
 
 networks:

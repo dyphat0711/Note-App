@@ -8,11 +8,14 @@ use App\Models\Label;
 use App\Models\Note;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class NoteService
 {
+    private const DEFAULT_NOTE_COLOR = '#fef3c7';
+
     /**
      * Get all notes for a user with eager-loaded relationships, optionally filtered by labels.
      *
@@ -25,22 +28,19 @@ class NoteService
             return $this->buildUserNotesQuery($user, $labelIds)->get();
         }
 
-        // Cache the full note list for 60 s (MySQL production path).
-        // The cache key is invalidated on any create / update / delete.
-        return Cache::remember(
-            "notes.user.{$user->id}",
-            60,
-            fn () => $this->buildUserNotesQuery($user)->get(),
-        );
+        // Do not cache Eloquent collections here. The database cache driver
+        // stores serialized models and can return __PHP_Incomplete_Class after
+        // code reloads, which makes the notes endpoint intermittently 500.
+        return $this->buildUserNotesQuery($user)->get();
     }
 
     /**
      * Build the base query for a user's notes with eager-loaded relationships.
      *
      * @param  array<int>  $labelIds
-     * @return \Illuminate\Database\Eloquent\Builder<Note>
+     * @return HasMany<Note, User>
      */
-    private function buildUserNotesQuery(User $user, array $labelIds = []): \Illuminate\Database\Eloquent\Builder
+    private function buildUserNotesQuery(User $user, array $labelIds = []): HasMany
     {
         $query = $user->notes()
             ->with(['labels', 'shares.sharedWithUser', 'attachments']);
@@ -71,7 +71,7 @@ class NoteService
             $note = $user->notes()->create([
                 'title'     => $data['title'],
                 'content'   => $data['content'] ?? null,
-                'color'     => $data['color'] ?? null,
+                'color'     => $data['color'] ?? self::DEFAULT_NOTE_COLOR,
                 'is_pinned' => false,
             ]);
 
@@ -124,7 +124,7 @@ class NoteService
             // reuse what is already loaded (if available) and only reload labels
             // when the label set was actually modified.
             if ($labelsChanged) {
-                return $note->load(['labels', 'shares.sharedWithUser', 'attachments']);
+                return $note->load(['labels', 'shares.sharedWithUser', 'attachments', 'user']);
             }
 
             // Ensure relations are present on the model (they may already be loaded
@@ -138,6 +138,9 @@ class NoteService
             if (! $note->relationLoaded('attachments')) {
                 $note->load('attachments');
             }
+            if (! $note->relationLoaded('user')) {
+                $note->load('user');
+            }
 
             return $note;
         });
@@ -150,6 +153,7 @@ class NoteService
     {
         return DB::transaction(function () use ($note, $newPassword): Note {
             $note->update(['password' => $newPassword]);
+            Cache::forget("notes.user.{$note->user_id}");
 
             return $note->load(['labels', 'shares', 'attachments']);
         });

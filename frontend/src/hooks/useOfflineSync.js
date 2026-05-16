@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import offlineStore from "../lib/offlineStore";
 import { noteAPI, labelAPI } from "../api/services";
 import useNoteStore from "../store/useNoteStore";
+import useAuthStore from "../store/useAuthStore";
 
 /**
  * Determines whether an error is a network / connectivity failure as opposed
@@ -35,6 +36,7 @@ function isNetworkError(err) {
  * replaces local copy after a successful replay.
  */
 export function useOfflineSync() {
+  const userId = useAuthStore((s) => s.user?.id ?? null);
   const [isOnline, setIsOnline] = useState(
     typeof navigator !== "undefined" ? navigator.onLine : true,
   );
@@ -207,15 +209,26 @@ export function useOfflineSync() {
   // ── Snapshot store → IndexedDB on every change ────────────────────────────
   useEffect(() => {
     const unsubscribe = useNoteStore.subscribe((state, prev) => {
+      const previousNotesBelongToAnotherUser =
+        userId !== null &&
+        prev.notes.some((note) => note?.userId !== undefined && note.userId !== userId);
+      const resetDuringAccountSwitch =
+        previousNotesBelongToAnotherUser &&
+        state.loadedUserId === userId &&
+        state.notes.length === 0 &&
+        state.labels.length === 0;
+
+      if (resetDuringAccountSwitch) return;
+
       if (state.notes !== prev.notes) {
-        offlineStore.putNotes(state.notes).catch(() => {});
+        offlineStore.putNotes(state.notes, userId).catch(() => {});
       }
       if (state.labels !== prev.labels) {
-        offlineStore.putLabels(state.labels).catch(() => {});
+        offlineStore.putLabels(state.labels, userId).catch(() => {});
       }
     });
     return unsubscribe;
-  }, []);
+  }, [userId]);
 
   // ── Offline cold-start hydration ──────────────────────────────────────────
   /**
@@ -225,8 +238,8 @@ export function useOfflineSync() {
   const hydrateFromCache = useCallback(async () => {
     try {
       const [notes, labels] = await Promise.all([
-        offlineStore.getNotes(),
-        offlineStore.getLabels(),
+        offlineStore.getNotes(userId),
+        offlineStore.getLabels(userId),
       ]);
       if (notes.length || labels.length) {
         useNoteStore.setState({ notes, labels });
@@ -234,7 +247,7 @@ export function useOfflineSync() {
     } catch {
       /* IndexedDB unavailable */
     }
-  }, []);
+  }, [userId]);
 
   return {
     isOnline,

@@ -1,4 +1,4 @@
-# NoteFlow — Your Digital Notebook
+# NoteFlow - Notebook Web App
 
 [![Laravel](https://img.shields.io/badge/Backend-Laravel%2013-red?style=flat-square&logo=laravel)](https://laravel.com)
 [![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?style=flat-square&logo=react)](https://react.dev)
@@ -6,164 +6,248 @@
 [![PWA](https://img.shields.io/badge/PWA-Offline%20Ready-5A0FC8?style=flat-square&logo=pwa)](https://web.dev/progressive-web-apps/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-**NoteFlow** là ứng dụng ghi chú web full-stack hiện đại — hỗ trợ cộng tác thời gian thực, hoạt động offline và trải nghiệm UI/UX tinh tế trên mọi thiết bị.
+**NoteFlow** là ứng dụng ghi chú full-stack với rich-text editor, chia sẻ ghi chú, cộng tác thời gian thực, PWA/offline sync và giao diện responsive.
 
----
-
-## ✨ Tính năng
+## ✨ Tính Năng
 
 ### 🔐 Tài khoản
-- Đăng ký / Đăng nhập bảo mật với Laravel Sanctum
-- Xác minh email, quên mật khẩu qua Link hoặc OTP
-- Hồ sơ cá nhân, ảnh đại diện, đổi mật khẩu
-- Tùy chỉnh giao diện: Dark / Light / System, cỡ chữ, màu ghi chú mặc định
+
+- Đăng ký, đăng nhập bằng Laravel Sanctum.
+- Xác minh email, quên mật khẩu bằng link hoặc OTP.
+- Hồ sơ cá nhân, ảnh đại diện, đổi mật khẩu.
+- Tùy chỉnh giao diện, cỡ chữ và màu ghi chú mặc định.
 
 ### 📝 Ghi chú
-- Soạn thảo rich-text (in đậm, in nghiêng, gạch chân, ảnh inline) bằng Tiptap
-- **Auto-save thông minh** — gom title + content vào 1 API call, bỏ qua khi nội dung không đổi
-- Ghim ghi chú quan trọng lên đầu danh sách
-- Đặt màu nền riêng cho từng ghi chú
-- Đính kèm hình ảnh (jpg, png, webp, gif — tối đa 5 MB/file)
-- Xem theo **Grid** hoặc **List**, lưu tùy chọn vào localStorage
-- Tìm kiếm full-text nhanh (FULLTEXT index trên MySQL)
 
-### 🏷️ Nhãn (Labels)
-- Tạo, sửa, xóa nhãn với màu tuỳ chọn
-- Lọc ghi chú theo một hoặc nhiều nhãn
+- Soạn thảo rich-text bằng Tiptap: bold, italic, underline, ảnh inline.
+- Auto-save thông minh, gom title và content vào một lần gọi API khi có thể.
+- Ghim ghi chú quan trọng lên đầu danh sách.
+- Màu nền riêng cho từng ghi chú.
+- Đính kèm hình ảnh.
+- Xem dạng grid hoặc list.
+- Tìm kiếm full-text với MySQL FULLTEXT index.
 
-### 🔒 Bảo mật Ghi chú
-- Khóa ghi chú bằng mật khẩu riêng
-- Yêu cầu nhập lại mật khẩu hiện tại để đổi hoặc tắt khóa
+### 🏷️ Labels
 
-### 🤝 Chia sẻ & Cộng tác
-- Chia sẻ ghi chú với người dùng khác qua email
-- Phân quyền: **Chỉ đọc** hoặc **Có thể chỉnh sửa**
-- Cộng tác thời gian thực qua **WebSocket (Laravel Reverb)**: đồng bộ nội dung tức thì, hiển thị typing indicator và presence avatar
-- Thông báo trong ứng dụng và qua email khi được chia sẻ ghi chú
+- Tạo, sửa, xóa label với màu tùy chọn.
+- Lọc ghi chú theo một hoặc nhiều label.
 
-### 📱 PWA & Offline
-- Cài đặt như ứng dụng native trên Android/iOS/Desktop
-- Xem và chỉnh sửa ghi chú khi mất mạng (Service Worker + IndexedDB)
-- Tự động đồng bộ hàng đợi mutation khi có mạng trở lại
+### 🔒 Bảo mật ghi chú
 
----
+- Khóa ghi chú bằng mật khẩu riêng.
+- Yêu cầu mật khẩu hiện tại khi đổi hoặc tắt khóa.
 
-## 🛠 Tech Stack
+### 🤝 Chia sẻ và realtime
 
-| Layer | Công nghệ |
-|-------|-----------|
-| **Backend** | PHP 8.3+, Laravel 13, MySQL 8, Laravel Sanctum, Laravel Reverb |
-| **Frontend** | React 18, Vite 5, Zustand, Tiptap, Laravel Echo, Pusher-js |
-| **PWA** | vite-plugin-pwa, Workbox, LocalForage (IndexedDB) |
-| **Styling** | Tailwind CSS, CSS Variables, Glassmorphism |
+- Chia sẻ ghi chú qua email.
+- Phân quyền read-only hoặc edit.
+- Cộng tác thời gian thực bằng Laravel Reverb: đồng bộ nội dung, typing indicator và presence avatar.
 
----
+### 📱 PWA và offline
 
-## 📁 Cấu trúc dự án
+- Cài đặt như ứng dụng trên desktop/mobile.
+- Đọc và chỉnh sửa ghi chú khi mất mạng.
+- Đồng bộ lại mutation queue khi có mạng.
 
-```
-NoteFlow/
-├── backend/              # Laravel API (PHP)
+## 🛠️ Tech Stack
+
+| Layer    | Công nghệ                                                      |
+| -------- | -------------------------------------------------------------- |
+| Backend  | PHP 8.4+, Laravel 13, MySQL 8, Laravel Sanctum, Laravel Reverb |
+| Frontend | React 18, Vite 5, Zustand, Tiptap, Laravel Echo, Pusher-js     |
+| PWA      | vite-plugin-pwa, Workbox, LocalForage                          |
+| Styling  | Tailwind CSS, CSS variables                                    |
+| Docker   | Docker Compose, Nginx, PHP-FPM, MySQL, Redis                   |
+
+## 📁 Cấu Trúc Dự Án
+
+```text
+Note-Flow/
+├── backend/              # Laravel API
 │   ├── app/
-│   │   ├── Http/         # Controllers, Requests, Resources
-│   │   ├── Models/       # Eloquent Models
-│   │   ├── Services/     # Business Logic
-│   │   └── Events/       # Broadcast Events (Reverb)
 │   ├── database/
-│   │   ├── migrations/   # Schema migrations
-│   │   └── seeders/      # Demo data
-│   └── routes/api.php    # API routes
+│   ├── routes/
+│   └── .env.example
 ├── frontend/             # React SPA
 │   ├── src/
-│   │   ├── api/          # Axios + service wrappers
-│   │   ├── components/   # NoteEditor, NoteList, Sidebar, ...
-│   │   ├── hooks/        # useOfflineSync, useDebounce, ...
-│   │   ├── lib/          # echo.js, offlineStore.js
-│   │   ├── pages/        # Dashboard, Login, Profile, ...
-│   │   └── store/        # Zustand stores
 │   └── vite.config.js
-├── docker/               # Docker configs
+├── docker/               # Nginx, PHP-FPM, MySQL config
 ├── docker-compose.yml
-└── README.md
+├── .env.example          # Local non-Docker template
+├── .env.docker.example   # Docker Compose template
+├── setup.bat             # Docker setup for Windows
+└── setup.sh              # Docker setup for Linux/macOS
 ```
 
----
+## 🐳 Chạy Bằng Docker Compose
 
-## ⚙️ Cài đặt & Chạy (Local)
+### ✅ Yêu cầu
 
-### Yêu cầu
-- **PHP >= 8.3** & Composer
-- **Node.js >= 18** & npm
-- **MySQL 8** (hoặc XAMPP / Laragon)
+- Docker Desktop hoặc Docker Engine.
+- Port `80`, `3306`, `6379`, `8080` đang rảnh, hoặc chỉnh trong `.env`.
 
-### 1. Backend
+### 🪟 Windows
+
+Chạy:
+
+```cmd
+setup.bat
+```
+
+Script sẽ:
+
+- Tạo `.env` từ `.env.docker.example` nếu chưa có.
+- Tạo `backend/.env` từ `backend/.env.example` nếu chưa có.
+- Start MySQL, Redis, PHP-FPM.
+- Cài Composer dependencies vào Docker volume.
+- Chạy `key:generate`, `storage:link`, `migrate:fresh --seed`.
+- Build frontend bằng container Node.
+- Start queue worker, Reverb và Nginx.
+
+Sau khi xong, mở:
+
+```text
+http://localhost
+```
+
+### 🐧 Linux/macOS
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+### ⚙️ Các lệnh Docker hay dùng
+
+```bash
+docker compose ps
+docker compose logs -f nginx php-fpm reverb
+docker compose restart php-fpm queue-worker reverb nginx
+docker compose --profile tools run --rm frontend-builder
+```
+
+Nếu chỉ muốn chạy lại sau khi setup xong:
+
+```bash
+docker compose up -d
+```
+
+Nếu đổi code frontend:
+
+```bash
+docker compose --profile tools run --rm frontend-builder
+docker compose restart nginx
+```
+
+Nếu muốn reset dữ liệu demo:
+
+```bash
+docker compose exec php-fpm php artisan migrate:fresh --seed --force
+```
+
+## 💻 Chạy Local
+
+### ✅ Yêu cầu
+
+- PHP >= 8.4 và Composer.
+- Node.js >= 18 và npm.
+- MySQL 8, XAMPP hoặc Laragon.
+- Redis nếu muốn chạy queue/cache giống production.
+
+### ⚙️ Backend
 
 ```bash
 cd backend
-
-# Cài dependencies
 composer install
-
-# Cấu hình môi trường
-cp .env.example .env
-# → Mở .env, điền thông tin DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
-
-# Khởi tạo
+copy .env.example .env
 php artisan key:generate
 php artisan migrate:fresh --seed
 php artisan storage:link
+php artisan serve
+```
 
-# Chạy server
-php artisan serve                  # API: http://127.0.0.1:8000
+API chạy tại:
 
-# (Tuỳ chọn) WebSocket cho cộng tác thời gian thực
+```text
+http://127.0.0.1:8000
+```
+
+Realtime:
+
+```bash
 php artisan reverb:start
 ```
 
-### 2. Frontend
+### 🎨 Frontend
 
 ```bash
 cd frontend
-
-# Cài dependencies
 npm install
-
-# Chạy dev server
-npm run dev                        # App: http://localhost:5173
+npm run dev
 ```
 
----
+App chạy tại:
 
-## 🐳 Chạy với Docker
-
-```bash
-# 1. Cấu hình
-cp .env.docker.example .env
-
-# 2. Khởi động
-docker compose up -d --build
-
-# 3. Khởi tạo lần đầu
-docker compose exec php-fpm php artisan key:generate
-docker compose exec php-fpm php artisan migrate:fresh --seed
-docker compose exec php-fpm php artisan storage:link
+```text
+http://localhost:5173
 ```
 
-Truy cập: **http://localhost**
+Vite dev server đã proxy `/api`, `/sanctum`, `/storage` và `/broadcasting` sang backend local.
 
----
+## 🔧 Cấu Hình Env
 
-## 👤 Tài khoản Demo
+Các file `.env` thật không được commit:
 
-Sau khi chạy `migrate:fresh --seed`:
+- `.env`
+- `backend/.env`
+- `frontend/.env`
 
-| Tài khoản | Email | Mật khẩu | Ghi chú |
-|-----------|-------|-----------|---------|
-| Alice | `alice@example.test` | `Password123!` | Chủ ghi chú, đã xác minh, có dữ liệu mẫu |
-| Bob | `bob@example.test` | `Password123!` | Người nhận chia sẻ |
+Các file example được commit:
 
----
+- `.env.example`: dùng cho local non-Docker.
+- `.env.docker.example`: dùng cho Docker Compose.
+- `backend/.env.example`: template riêng cho Laravel backend.
 
-## 📄 Giấy phép
+### 📧 SMTP email
+
+Mặc định example dùng:
+
+```env
+MAIL_MAILER=log
+```
+
+Nếu muốn gửi email thật bằng Gmail, chỉ cấu hình trong `backend/.env` hoặc `.env` local của bạn:
+
+```env
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-google-app-password
+MAIL_ENCRYPTION=tls
+MAIL_FROM_ADDRESS="your-email@gmail.com"
+MAIL_FROM_NAME="${APP_NAME}"
+```
+
+Không đưa `MAIL_PASSWORD` thật vào file example hoặc commit Git.
+
+## 👤 Tài Khoản Demo
+
+Sau khi chạy seed:
+
+| Người dùng | Email                | Mật khẩu       | Ghi chú                     |
+| ---------- | -------------------- | -------------- | --------------------------- |
+| Alice      | `alice@example.test` | `Password123!` | Chủ ghi chú, có dữ liệu mẫu |
+| Bob        | `bob@example.test`   | `Password123!` | Người nhận note được share  |
+
+Demo realtime:
+
+1. Login Alice ở một browser.
+2. Login Bob ở browser khác hoặc incognito.
+3. Alice mở note `Project roadmap`.
+4. Bob mở note trong mục `Shared with me`.
+5. Chỉnh nội dung để kiểm tra đồng bộ realtime.
+
+## 📄 License
 
 Dự án phát hành theo giấy phép [MIT](LICENSE).

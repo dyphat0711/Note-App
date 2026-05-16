@@ -38,8 +38,8 @@ export default defineConfig({
       },
       workbox: {
         navigateFallback: "/index.html",
-        // Skip API calls — those go through axios + IndexedDB queue.
-        navigateFallbackDenylist: [/^\/api\//, /^\/sanctum\//, /^\/storage\//, /^\/broadcasting\//],
+        // Skip API calls and phpMyAdmin — those should go to the server.
+        navigateFallbackDenylist: [/^\/api\//, /^\/sanctum\//, /^\/storage\//, /^\/broadcasting\//, /^\/phpmyadmin\//],
         runtimeCaching: [
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/storage/"),

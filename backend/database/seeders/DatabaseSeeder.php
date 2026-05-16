@@ -56,6 +56,7 @@ class DatabaseSeeder extends Seeder
         $welcome = Note::create([
             'user_id' => $alice->id,
             'title' => 'Welcome to NoteFlow',
+            'color' => '#eef2ff',
             'content' => '<p>This is a <strong>pinned</strong> note that always stays at the top.</p>',
             'is_pinned' => true,
             'pinned_at' => now(),
@@ -66,6 +67,7 @@ class DatabaseSeeder extends Seeder
         $diary = Note::create([
             'user_id' => $alice->id,
             'title' => 'Locked diary',
+            'color' => '#fff7ed',
             'content' => '<p>This note is protected. Unlock with password <em>openme</em>.</p>',
             'password' => 'openme',
         ]);
@@ -75,6 +77,7 @@ class DatabaseSeeder extends Seeder
         $shared = Note::create([
             'user_id' => $alice->id,
             'title' => 'Project roadmap',
+            'color' => '#dbeafe',
             'content' => '<p>Q3 deliverables — collaborate with Bob in real time.</p>',
         ]);
         $shared->labels()->sync([$work->id]);
@@ -89,6 +92,7 @@ class DatabaseSeeder extends Seeder
         Note::create([
             'user_id' => $alice->id,
             'title' => 'Buy groceries',
+            'color' => '#dcfce7',
             'content' => '<p>milk, eggs, coffee, sourdough</p>',
         ]);
 

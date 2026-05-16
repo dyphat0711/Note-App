@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import UnderlineExt from "@tiptap/extension-underline";
 import ImageExt from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import {
@@ -39,6 +38,20 @@ const SAVE_DEBOUNCE_MS = 800;
 
 // Longer debounce for title — user usually pauses longer between title edits
 const TITLE_DEBOUNCE_MS = 1000;
+
+function normalizePresenceUser(raw) {
+  const user = raw?.user_info || raw?.userInfo || raw || {};
+  const displayName = user.display_name || user.displayName || user.name || null;
+  const email = user.email || null;
+  const id = user.id ?? raw?.id ?? email ?? displayName;
+
+  return {
+    id,
+    displayName,
+    display_name: displayName,
+    email,
+  };
+}
 
 const NoteEditor = React.memo(({ note, onClose }) => {
   const updateNote = useNoteStore((s) => s.updateNote);
@@ -78,7 +91,6 @@ const NoteEditor = React.memo(({ note, onClose }) => {
     editable: canEdit,
     extensions: [
       StarterKit,
-      UnderlineExt,
       ImageExt.configure({ inline: false }),
       Placeholder.configure({ placeholder: "Start writing your note..." }),
     ],
@@ -146,8 +158,7 @@ const NoteEditor = React.memo(({ note, onClose }) => {
         remoteUpdateRef.current = false;
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note?.id, canEdit]);
+  }, [note?.id, note?.content, canEdit, editor]);
 
   // Auto-save title — batched into the same API call as content when possible.
   useEffect(() => {
@@ -205,22 +216,20 @@ const NoteEditor = React.memo(({ note, onClose }) => {
     channel.listen(".NoteUpdated", (payload) => {
       if (payload.updated_by === currentUser?.id) return;
       remoteUpdateRef.current = true;
-      if (editor && !editor.isDestroyed && payload.content !== undefined) {
-        // When note is locked remotely, clear the editor content
-        if (payload.has_password) {
-          editor.commands.setContent("", false);
-        } else {
-          editor.commands.setContent(payload.content || "", false);
-        }
+      if (editor && !editor.isDestroyed && !payload.has_password && payload.content !== undefined) {
+        editor.commands.setContent(payload.content || "", false);
       }
       if (payload.title !== undefined) setTitle(payload.title);
-      applyRemoteNoteUpdate(note.id, {
+      const remotePatch = {
         title: payload.title,
-        content: payload.has_password ? null : payload.content,
         color: payload.color,
         hasPassword: payload.has_password,
         updatedAt: payload.updated_at,
-      });
+      };
+      if (!payload.has_password && payload.content !== undefined) {
+        remotePatch.content = payload.content;
+      }
+      applyRemoteNoteUpdate(note.id, remotePatch);
       remoteUpdateRef.current = false;
       if (payload.has_password) {
         toast("This note has been locked by the owner.", { icon: "🔒" });
@@ -234,15 +243,19 @@ const NoteEditor = React.memo(({ note, onClose }) => {
 
     if (presence) {
       presence
-        .here((users) => setPresenceUsers(users))
+        .here((users) => setPresenceUsers((users || []).map(normalizePresenceUser)))
         .joining((user) => {
+          const normalized = normalizePresenceUser(user);
           setPresenceUsers((prev) => {
-            if (prev.find((u) => u.id === user.id)) return prev;
-            return [...prev, user];
+            if (prev.find((u) => u.id === normalized.id || (u.email && u.email === normalized.email))) return prev;
+            return [...prev, normalized];
           });
         })
         .leaving((user) => {
-          setPresenceUsers((prev) => prev.filter((u) => u.id !== user.id));
+          const normalized = normalizePresenceUser(user);
+          setPresenceUsers((prev) =>
+            prev.filter((u) => u.id !== normalized.id && (!normalized.email || u.email !== normalized.email)),
+          );
         })
         .listenForWhisper("typing", ({ userId, userName }) => {
           setTypingUsers((prev) => {
@@ -261,8 +274,7 @@ const NoteEditor = React.memo(({ note, onClose }) => {
       cancelled = true;
       leaveNote(note.id);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [note?.id, note?.isShared, currentUser?.id]);
+  }, [note?.id, note?.isShared, currentUser?.id, editor, applyRemoteNoteUpdate]);
 
   const handleTogglePin = useCallback(() => {
     if (!note?.isOwner) return;
@@ -395,9 +407,9 @@ const NoteEditor = React.memo(({ note, onClose }) => {
             )}
           </div>
           <div className="presence-avatar-stack">
-            {presenceUsers.slice(0, 5).map((u) => (
+            {presenceUsers.slice(0, 5).map((u, index) => (
               <span
-                key={u.id}
+                key={u.id ?? u.email ?? u.displayName ?? u.display_name ?? `presence-${index}`}
                 className="presence-avatar"
                 style={{
                   background: u.id === currentUser?.id
@@ -407,9 +419,9 @@ const NoteEditor = React.memo(({ note, onClose }) => {
                     ? "rgb(165, 180, 252)"
                     : "rgb(147, 197, 253)",
                 }}
-                title={`${u.display_name || u.email}${u.id === currentUser?.id ? " (you)" : ""}`}
+                title={`${u.displayName || u.display_name || u.email || "Unknown"}${u.id === currentUser?.id ? " (you)" : ""}`}
               >
-                {(u.display_name || u.email || "?").charAt(0).toUpperCase()}
+                {(u.displayName || u.display_name || u.email || "?").charAt(0).toUpperCase()}
               </span>
             ))}
             {presenceUsers.length > 5 && (
@@ -538,16 +550,16 @@ const NoteEditor = React.memo(({ note, onClose }) => {
           )}
           {!note?.isOwner && note?.owner && (
             <span className="text-blue-300">
-              Shared by {note.owner.display_name || note.owner.email}
+              Shared by {note.owner.displayName || note.owner.display_name || note.owner.email}
             </span>
           )}
         </div>
 
         {/* Labels */}
         <div className="flex flex-wrap items-center gap-2">
-          {(note?.labels || []).map((label) => (
+          {(note?.labels || []).map((label, index) => (
             <button
-              key={label.id}
+              key={label.id ?? `${label.name || "label"}-${label.color || "color"}-${index}`}
               onClick={() => handleToggleLabel(label)}
               disabled={!canEdit}
               className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-dark-200 text-surface-200 hover:bg-dark-100 transition-colors duration-150 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -660,9 +672,9 @@ const NoteEditor = React.memo(({ note, onClose }) => {
               <ImageIcon size={11} /> Attachments ({note.attachments.length})
             </h4>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {note.attachments.map((att) => (
+              {note.attachments.map((att, index) => (
                 <div
-                  key={att.id}
+                  key={att.id ?? att.url ?? att.name ?? `attachment-${index}`}
                   className="group relative rounded-lg overflow-hidden border border-dark-300 bg-dark-200"
                 >
                   {att.url && att.mime?.startsWith("image/") ? (

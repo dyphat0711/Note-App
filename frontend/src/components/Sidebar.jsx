@@ -465,8 +465,16 @@ const Sidebar = React.memo(({ onClose }) => {
                       </button>
                     </div>
                   ) : (
-                    <button
+                    <div
+                      role="button"
+                      tabIndex={0}
                       onClick={() => toggleLabelFilter(label.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          toggleLabelFilter(label.id);
+                        }
+                      }}
                       className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all duration-150 cursor-pointer ${
                         isLabelSelected(label.id)
                           ? "text-accent-400"
@@ -495,7 +503,7 @@ const Sidebar = React.memo(({ onClose }) => {
                           <Trash2 size={11} />
                         </button>
                       </span>
-                    </button>
+                    </div>
                   )}
                 </div>
               ))}

@@ -10,7 +10,6 @@ use App\Policies\LabelPolicy;
 use App\Policies\NotePolicy;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Broadcast;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\URL;
@@ -28,10 +27,6 @@ class AppServiceProvider extends ServiceProvider
         // Explicit policy registration (avoids reliance on convention discovery).
         Gate::policy(Note::class, NotePolicy::class);
         Gate::policy(Label::class, LabelPolicy::class);
-
-        // Register broadcasting auth route under Sanctum so SPA tokens authenticate
-        // private/presence channel subscriptions.
-        Broadcast::routes(['middleware' => ['auth:sanctum']]);
 
         // Customize email verification URL to point to the frontend SPA
         VerifyEmail::createUrlUsing(function ($notifiable) {

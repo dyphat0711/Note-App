@@ -20,37 +20,56 @@ const stores = {
   user: localforage.createInstance({ name: "noteflow", storeName: "user" }),
 };
 
+function scopedKey(userId, id) {
+  return `${userId ?? "anonymous"}:${id}`;
+}
+
+async function clearScope(store, userId) {
+  const prefix = `${userId ?? "anonymous"}:`;
+  const keys = [];
+  await store.iterate((_value, key) => {
+    if (String(key).startsWith(prefix)) keys.push(key);
+  });
+  await Promise.all(keys.map((key) => store.removeItem(key)));
+}
+
 export const offlineStore = {
   // ─────────────────────────── Notes ───────────────────────────
-  async getNotes() {
+  async getNotes(userId) {
     const notes = [];
-    await stores.notes.iterate((value) => notes.push(value));
+    const prefix = `${userId ?? "anonymous"}:`;
+    await stores.notes.iterate((value, key) => {
+      if (String(key).startsWith(prefix)) notes.push(value);
+    });
     return notes.sort(
       (a, b) =>
         new Date(b.updatedAt || 0).getTime() -
         new Date(a.updatedAt || 0).getTime(),
     );
   },
-  async putNotes(notes) {
-    await stores.notes.clear();
-    await Promise.all(notes.map((note) => stores.notes.setItem(String(note.id), note)));
+  async putNotes(notes, userId) {
+    await clearScope(stores.notes, userId);
+    await Promise.all(notes.map((note) => stores.notes.setItem(scopedKey(userId, note.id), note)));
   },
-  async upsertNote(note) {
-    await stores.notes.setItem(String(note.id), note);
+  async upsertNote(note, userId) {
+    await stores.notes.setItem(scopedKey(userId, note.id), note);
   },
-  async removeNote(id) {
-    await stores.notes.removeItem(String(id));
+  async removeNote(id, userId) {
+    await stores.notes.removeItem(scopedKey(userId, id));
   },
 
   // ─────────────────────────── Labels ──────────────────────────
-  async getLabels() {
+  async getLabels(userId) {
     const labels = [];
-    await stores.labels.iterate((value) => labels.push(value));
+    const prefix = `${userId ?? "anonymous"}:`;
+    await stores.labels.iterate((value, key) => {
+      if (String(key).startsWith(prefix)) labels.push(value);
+    });
     return labels;
   },
-  async putLabels(labels) {
-    await stores.labels.clear();
-    await Promise.all(labels.map((label) => stores.labels.setItem(String(label.id), label)));
+  async putLabels(labels, userId) {
+    await clearScope(stores.labels, userId);
+    await Promise.all(labels.map((label) => stores.labels.setItem(scopedKey(userId, label.id), label)));
   },
 
   // ─────────────────────── Pending mutations ───────────────────

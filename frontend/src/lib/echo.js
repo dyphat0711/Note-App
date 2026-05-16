@@ -28,8 +28,7 @@ export function getEcho() {
   if (echoInstance) return echoInstance;
   if (!echoModulesLoaded || typeof window === "undefined") return null;
 
-  const key = import.meta.env.VITE_REVERB_APP_KEY;
-  if (!key) return null; // Real-time disabled (no env config)
+  const key = import.meta.env.VITE_REVERB_APP_KEY || "noteflow_key";
 
   const EchoClass = window._EchoClass;
   const host = import.meta.env.VITE_REVERB_HOST || window.location.hostname;

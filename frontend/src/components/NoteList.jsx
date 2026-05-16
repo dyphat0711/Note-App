@@ -507,7 +507,7 @@ const SharedNoteCard = React.memo(
     index = 0,
   }) => {
     const canEdit = note.sharePermission === "edit";
-    const ownerName = note.owner?.display_name || note.owner?.email || "Unknown";
+    const ownerName = note.owner?.displayName || note.owner?.display_name || note.owner?.email || "Unknown";
     const ownerInitial = ownerName.charAt(0).toUpperCase();
     const ownerAvatarPath = note.owner?.avatar_path;
 
@@ -740,7 +740,7 @@ const NoteCard = React.memo(
               </span>
               {!note.isOwner && note.owner && (
                 <span className="text-xs text-blue-500 truncate">
-                  · from {note.owner.display_name || note.owner.email}
+                  · from {note.owner.displayName || note.owner.display_name || note.owner.email}
                 </span>
               )}
               {note.sharePermission && (
