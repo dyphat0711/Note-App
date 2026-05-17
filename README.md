@@ -193,44 +193,6 @@ http://localhost:5173
 
 Vite dev server proxy `/api`, `/sanctum`, `/storage` và `/broadcasting` sang backend local.
 
-## 🖼️ Storage Và Upload Ảnh
-
-Ảnh upload được lưu vào disk `public` tại `backend/storage/app/public` và frontend dùng URL dạng:
-
-```text
-/storage/attachments/{noteId}/{filename}
-```
-
-Laravel đã bật `serve => true` cho disk `public`, nên khi chạy local chỉ cần upload ảnh là xem được qua `/storage/...`; không cần chạy lại `php artisan storage:link` sau mỗi lần khởi động.
-
-Nếu ảnh vẫn bị vỡ sau khi đổi cấu hình, chạy:
-
-```bash
-cd backend
-php artisan config:clear
-php artisan route:clear
-```
-
-Docker/Nginx vẫn mount `backend/storage/app/public` vào `public/storage`, nên ảnh cũng hoạt động trong môi trường Docker.
-
-## ✅ Kiểm Tra Chất Lượng
-
-Frontend:
-
-```bash
-cd frontend
-npm run lint
-npm run build
-```
-
-Backend syntax check ví dụ:
-
-```bash
-cd backend
-php -l config/filesystems.php
-php artisan route:list --path=storage
-```
-
 ## 🔧 Cấu Hình Env
 
 Các file `.env` thật không được commit:
