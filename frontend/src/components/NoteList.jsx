@@ -20,6 +20,24 @@ import { useDebounce } from "../hooks/useDebounce";
 import useNoteStore, { transformNote } from "../store/useNoteStore";
 import { noteAPI } from "../api/services";
 
+function labelsEqual(a = [], b = []) {
+  if (a === b) return true;
+  if (!Array.isArray(a) || !Array.isArray(b)) return false;
+  if (a.length !== b.length) return false;
+
+  for (let i = 0; i < a.length; i += 1) {
+    if (
+      a[i]?.id !== b[i]?.id ||
+      a[i]?.name !== b[i]?.name ||
+      a[i]?.color !== b[i]?.color
+    ) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 // ── Module-level utilities (stable references, never break React.memo) ──
 
 function formatDate(dateStr) {
@@ -119,6 +137,11 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
       setServerSearchResults(null);
       return;
     }
+    if (activeSection === "shared") {
+      setServerSearchResults(clientSearch(sharedNotes, q));
+      setSearching(false);
+      return;
+    }
     // Short queries → client-side (instant, no server round-trip)
     if (q.length <= CLIENT_SEARCH_MAX_LEN) {
       setServerSearchResults(clientSearch(notes, q));
@@ -140,11 +163,11 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
       })
       .finally(() => setSearching(false));
     return () => controller.abort();
-  }, [debouncedSearch, notes]);
+  }, [activeSection, debouncedSearch, notes, sharedNotes]);
 
   const sourceNotes = useMemo(() => {
-    if (activeSection === "shared") return Array.isArray(sharedNotes) ? sharedNotes : [];
     if (debouncedSearch.trim() && serverSearchResults) return Array.isArray(serverSearchResults) ? serverSearchResults : [];
+    if (activeSection === "shared") return Array.isArray(sharedNotes) ? sharedNotes : [];
     return Array.isArray(notes) ? notes : [];
   }, [activeSection, sharedNotes, debouncedSearch, serverSearchResults, notes]);
 
@@ -833,6 +856,7 @@ const NoteCard = React.memo(
     prev.note.color       === next.note.color       &&
     prev.note.isShared    === next.note.isShared    &&
     prev.note.hasPassword === next.note.hasPassword &&
+    labelsEqual(prev.note.labels, next.note.labels) &&
     prev.isActive         === next.isActive         &&
     prev.isGrid           === next.isGrid,
 );
