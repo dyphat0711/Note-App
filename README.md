@@ -45,10 +45,9 @@
 
 ### 📱 PWA, Offline Và Responsive
 
-- Cài đặt như ứng dụng trên desktop/mobile.
-- Đọc và chỉnh sửa ghi chú khi mất mạng.
-- Đồng bộ lại mutation queue khi có mạng.
-- Tablet dưới `1024px` dùng layout một panel để tránh chật; desktop từ `1024px` dùng list/editor hai cột; sidebar cố định từ `1280px`.
+- Thiết kế responsive cho desktop, tablet và mobile.
+- Hỗ trợ đọc và chỉnh sửa ghi chú khi offline.
+- Tự động đồng bộ các thay đổi trong hàng đợi khi kết nối được khôi phục.
 
 ## 🛠️ Tech Stack
 
