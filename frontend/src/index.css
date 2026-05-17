@@ -483,7 +483,18 @@
 
 @media (min-width: 641px) and (max-width: 1023px) {
   .note-list-panel {
-    width: 300px !important;
+    width: 100% !important;
+    border-right: none;
+  }
+}
+
+.responsive-fab {
+  bottom: 24px;
+}
+
+@media (max-width: 640px) {
+  .responsive-fab {
+    bottom: calc(var(--bottom-nav-height, 60px) + 16px);
   }
 }
 
@@ -560,4 +571,3 @@
   @apply w-1.5 h-1.5 rounded-full bg-green-400;
   animation: livePulse 2s ease-in-out infinite;
 }
-

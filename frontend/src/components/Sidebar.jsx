@@ -84,7 +84,7 @@ const ColorPicker = ({ value, onChange, isDark = true }) => {
  * never clipped by overflow:auto/hidden ancestor containers.
  * Automatically adapts colors to dark / light theme.
  */
-const PickerPortal = ({ anchorRef, value, onChange, onClose }) => {
+const PickerPortal = ({ anchorEl, value, onChange, onClose }) => {
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const portalRef = useRef(null);
 
@@ -106,26 +106,26 @@ const PickerPortal = ({ anchorRef, value, onChange, onClose }) => {
 
   // Position the portal below the anchor button
   useEffect(() => {
-    if (anchorRef?.current) {
-      const rect = anchorRef.current.getBoundingClientRect();
+    if (anchorEl) {
+      const rect = anchorEl.getBoundingClientRect();
       setCoords({
         top: rect.bottom + 6,
         left: rect.left,
       });
     }
-  }, [anchorRef]);
+  }, [anchorEl]);
 
   // Close when clicking outside the portal
   useEffect(() => {
     const handleMouseDown = (e) => {
       if (portalRef.current && !portalRef.current.contains(e.target) &&
-          anchorRef?.current && !anchorRef.current.contains(e.target)) {
+          anchorEl && !anchorEl.contains(e.target)) {
         onClose();
       }
     };
     document.addEventListener("mousedown", handleMouseDown);
     return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, [onClose, anchorRef]);
+  }, [onClose, anchorEl]);
 
   return createPortal(
     <div
@@ -171,15 +171,21 @@ const Sidebar = React.memo(({ onClose }) => {
   const [editLabelName, setEditLabelName] = useState("");
   const [editLabelColor, setEditLabelColor] = useState("#3b82f6");
   const [showColorPickerFor, setShowColorPickerFor] = useState(null);
+  const [colorPickerAnchor, setColorPickerAnchor] = useState(null);
   const [confirmDeleteLabelId, setConfirmDeleteLabelId] = useState(null);
 
-  const colorPickerRef = useRef(null);
-  // Ref for the new-label color swatch button (portal anchor)
-  const newColorBtnRef = useRef(null);
-  // Refs map for edit-label color swatch buttons
-  const editColorBtnRefs = useRef({});
+  const closeColorPicker = useCallback(() => {
+    setShowColorPickerFor(null);
+    setColorPickerAnchor(null);
+  }, []);
 
-  const closeColorPicker = useCallback(() => setShowColorPickerFor(null), []);
+  const toggleColorPicker = useCallback((id, anchorEl) => {
+    setShowColorPickerFor((current) => {
+      const next = current === id ? null : id;
+      setColorPickerAnchor(next ? anchorEl : null);
+      return next;
+    });
+  }, []);
 
   const sharedCount = sharedNotes.length;
 
@@ -262,7 +268,7 @@ const Sidebar = React.memo(({ onClose }) => {
           </div>
           <button
             onClick={onClose}
-            className="lg:hidden p-1.5 rounded-lg text-dark-50 hover:text-surface-200 hover:bg-dark-200 transition-all duration-150"
+            className="xl:hidden p-1.5 rounded-lg text-dark-50 hover:text-surface-200 hover:bg-dark-200 transition-all duration-150"
             aria-label="Close sidebar"
           >
             <X size={16} />
@@ -364,14 +370,13 @@ const Sidebar = React.memo(({ onClose }) => {
                 <div className="px-2 py-2 space-y-2 animate-fade-in-up">
                   <div className="flex items-center gap-2">
                     <button
-                      ref={newColorBtnRef}
-                      onClick={() => setShowColorPickerFor(showColorPickerFor === "new" ? null : "new")}
+                      onClick={(e) => toggleColorPicker("new", e.currentTarget)}
                       className="w-5 h-5 rounded-full border-2 border-dark-100 flex-shrink-0 transition-transform hover:scale-110"
                       style={{ backgroundColor: newLabelColor }}
                     />
                     {showColorPickerFor === "new" && (
                       <PickerPortal
-                        anchorRef={newColorBtnRef}
+                        anchorEl={colorPickerAnchor}
                         value={newLabelColor}
                         onChange={setNewLabelColor}
                         onClose={closeColorPicker}
@@ -411,14 +416,13 @@ const Sidebar = React.memo(({ onClose }) => {
                     <div className="px-2 py-2 space-y-2 animate-fade-in-up">
                       <div className="flex items-center gap-2">
                         <button
-                          ref={(el) => { editColorBtnRefs.current[label.id] = el; }}
-                          onClick={() => setShowColorPickerFor(showColorPickerFor === label.id ? null : label.id)}
+                          onClick={(e) => toggleColorPicker(label.id, e.currentTarget)}
                           className="w-5 h-5 rounded-full border-2 border-dark-100 flex-shrink-0 transition-transform hover:scale-110"
                           style={{ backgroundColor: editLabelColor }}
                         />
                         {showColorPickerFor === label.id && (
                           <PickerPortal
-                            anchorRef={{ current: editColorBtnRefs.current[label.id] }}
+                            anchorEl={colorPickerAnchor}
                             value={editLabelColor}
                             onChange={setEditLabelColor}
                             onClose={closeColorPicker}

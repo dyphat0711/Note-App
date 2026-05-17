@@ -1,4 +1,4 @@
-# NoteFlow - Notebook Web App
+# 📝 NoteFlow - Notebook Web App
 
 [![Laravel](https://img.shields.io/badge/Backend-Laravel%2013-red?style=flat-square&logo=laravel)](https://laravel.com)
 [![React](https://img.shields.io/badge/Frontend-React%2018-61DAFB?style=flat-square&logo=react)](https://react.dev)
@@ -6,18 +6,18 @@
 [![PWA](https://img.shields.io/badge/PWA-Offline%20Ready-5A0FC8?style=flat-square&logo=pwa)](https://web.dev/progressive-web-apps/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](LICENSE)
 
-**NoteFlow** là ứng dụng ghi chú full-stack với rich-text editor, chia sẻ ghi chú, cộng tác thời gian thực, PWA/offline sync và giao diện responsive.
+**NoteFlow** là ứng dụng ghi chú full-stack với rich-text editor, chia sẻ ghi chú, cộng tác thời gian thực, PWA/offline sync và giao diện responsive cho desktop, tablet, mobile.
 
 ## ✨ Tính Năng
 
-### 🔐 Tài khoản
+### 🔐 Tài Khoản
 
 - Đăng ký, đăng nhập bằng Laravel Sanctum.
 - Xác minh email, quên mật khẩu bằng link hoặc OTP.
 - Hồ sơ cá nhân, ảnh đại diện, đổi mật khẩu.
-- Tùy chỉnh giao diện, cỡ chữ và màu ghi chú mặc định.
+- Tùy chỉnh giao diện, cỡ chữ, màu ghi chú mặc định và chế độ hiển thị.
 
-### 📝 Ghi chú
+### 📝 Ghi Chú
 
 - Soạn thảo rich-text bằng Tiptap: bold, italic, underline, ảnh inline.
 - Auto-save thông minh, gom title và content vào một lần gọi API khi có thể.
@@ -32,22 +32,23 @@
 - Tạo, sửa, xóa label với màu tùy chọn.
 - Lọc ghi chú theo một hoặc nhiều label.
 
-### 🔒 Bảo mật ghi chú
+### 🔒 Bảo Mật Ghi Chú
 
 - Khóa ghi chú bằng mật khẩu riêng.
 - Yêu cầu mật khẩu hiện tại khi đổi hoặc tắt khóa.
 
-### 🤝 Chia sẻ và realtime
+### 🤝 Chia Sẻ Và Realtime
 
 - Chia sẻ ghi chú qua email.
 - Phân quyền read-only hoặc edit.
 - Cộng tác thời gian thực bằng Laravel Reverb: đồng bộ nội dung, typing indicator và presence avatar.
 
-### 📱 PWA và offline
+### 📱 PWA, Offline Và Responsive
 
 - Cài đặt như ứng dụng trên desktop/mobile.
 - Đọc và chỉnh sửa ghi chú khi mất mạng.
 - Đồng bộ lại mutation queue khi có mạng.
+- Tablet dưới `1024px` dùng layout một panel để tránh chật; desktop từ `1024px` dùng list/editor hai cột; sidebar cố định từ `1280px`.
 
 ## 🛠️ Tech Stack
 
@@ -81,14 +82,12 @@ Note-Flow/
 
 ## 🐳 Chạy Bằng Docker Compose
 
-### ✅ Yêu cầu
+### ✅ Yêu Cầu
 
 - Docker Desktop hoặc Docker Engine.
 - Port `80`, `3306`, `6379`, `8080` đang rảnh, hoặc chỉnh trong `.env`.
 
 ### 🪟 Windows
-
-Chạy:
 
 ```cmd
 setup.bat
@@ -100,7 +99,7 @@ Script sẽ:
 - Tạo `backend/.env` từ `backend/.env.example` nếu chưa có.
 - Start MySQL, Redis, PHP-FPM.
 - Cài Composer dependencies vào Docker volume.
-- Chạy `key:generate`, `storage:link`, `migrate:fresh --seed`.
+- Chạy `key:generate`, migrate/seed database và chuẩn bị storage.
 - Build frontend bằng container Node.
 - Start queue worker, Reverb và Nginx.
 
@@ -117,7 +116,7 @@ chmod +x setup.sh
 ./setup.sh
 ```
 
-### ⚙️ Các lệnh Docker hay dùng
+### ⚙️ Các Lệnh Docker Hay Dùng
 
 ```bash
 docker compose ps
@@ -126,7 +125,7 @@ docker compose restart php-fpm queue-worker reverb nginx
 docker compose --profile tools run --rm frontend-builder
 ```
 
-Nếu chỉ muốn chạy lại sau khi setup xong:
+Chạy lại sau khi setup xong:
 
 ```bash
 docker compose up -d
@@ -147,14 +146,14 @@ docker compose exec php-fpm php artisan migrate:fresh --seed --force
 
 ## 💻 Chạy Local
 
-### ✅ Yêu cầu
+### ✅ Yêu Cầu
 
 - PHP >= 8.4 và Composer.
 - Node.js >= 18 và npm.
 - MySQL 8, XAMPP hoặc Laragon.
 - Redis nếu muốn chạy queue/cache giống production.
 
-### ⚙️ Backend
+### 🧩 Backend
 
 ```bash
 cd backend
@@ -162,7 +161,7 @@ composer install
 copy .env.example .env
 php artisan key:generate
 php artisan migrate:fresh --seed
-php artisan storage:link
+php artisan config:clear
 php artisan serve
 ```
 
@@ -192,7 +191,45 @@ App chạy tại:
 http://localhost:5173
 ```
 
-Vite dev server đã proxy `/api`, `/sanctum`, `/storage` và `/broadcasting` sang backend local.
+Vite dev server proxy `/api`, `/sanctum`, `/storage` và `/broadcasting` sang backend local.
+
+## 🖼️ Storage Và Upload Ảnh
+
+Ảnh upload được lưu vào disk `public` tại `backend/storage/app/public` và frontend dùng URL dạng:
+
+```text
+/storage/attachments/{noteId}/{filename}
+```
+
+Laravel đã bật `serve => true` cho disk `public`, nên khi chạy local chỉ cần upload ảnh là xem được qua `/storage/...`; không cần chạy lại `php artisan storage:link` sau mỗi lần khởi động.
+
+Nếu ảnh vẫn bị vỡ sau khi đổi cấu hình, chạy:
+
+```bash
+cd backend
+php artisan config:clear
+php artisan route:clear
+```
+
+Docker/Nginx vẫn mount `backend/storage/app/public` vào `public/storage`, nên ảnh cũng hoạt động trong môi trường Docker.
+
+## ✅ Kiểm Tra Chất Lượng
+
+Frontend:
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```
+
+Backend syntax check ví dụ:
+
+```bash
+cd backend
+php -l config/filesystems.php
+php artisan route:list --path=storage
+```
 
 ## 🔧 Cấu Hình Env
 
@@ -208,7 +245,7 @@ Các file example được commit:
 - `.env.docker.example`: dùng cho Docker Compose.
 - `backend/.env.example`: template riêng cho Laravel backend.
 
-### 📧 SMTP email
+### 📧 SMTP Email
 
 Mặc định example dùng:
 
@@ -239,14 +276,6 @@ Sau khi chạy seed:
 | ---------- | -------------------- | -------------- | --------------------------- |
 | Alice      | `alice@example.test` | `Password123!` | Chủ ghi chú, có dữ liệu mẫu |
 | Bob        | `bob@example.test`   | `Password123!` | Người nhận note được share  |
-
-Demo realtime:
-
-1. Login Alice ở một browser.
-2. Login Bob ở browser khác hoặc incognito.
-3. Alice mở note `Project roadmap`.
-4. Bob mở note trong mục `Shared with me`.
-5. Chỉnh nội dung để kiểm tra đồng bộ realtime.
 
 ## 📄 License
 

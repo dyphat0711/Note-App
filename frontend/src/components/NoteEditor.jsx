@@ -39,6 +39,23 @@ const SAVE_DEBOUNCE_MS = 800;
 // Longer debounce for title — user usually pauses longer between title edits
 const TITLE_DEBOUNCE_MS = 1000;
 
+function getRenderableContent(content, attachments = []) {
+  if (!content || typeof content !== "string") return "";
+
+  const attachmentUrls = new Set(
+    attachments
+      .filter((att) => att?.exists !== false && att?.url)
+      .map((att) => att.url),
+  );
+
+  return content.replace(/<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/gi, (tag, src) => {
+    if (src.startsWith("/storage/") && !attachmentUrls.has(src)) {
+      return "";
+    }
+    return tag;
+  });
+}
+
 function normalizePresenceUser(raw) {
   const user = raw?.user_info || raw?.userInfo || raw || {};
   const displayName = user.display_name || user.displayName || user.name || null;
@@ -83,7 +100,7 @@ const NoteEditor = React.memo(({ note, onClose }) => {
   const whisperTimerRef = useRef(null); // throttle typing whispers
   // Tracks the last content that was actually sent to the server.
   // Used to skip saves when the user reverts to the previously saved value.
-  const lastSavedContentRef = useRef(note?.content || "");
+  const lastSavedContentRef = useRef(getRenderableContent(note?.content, note?.attachments));
   // Accumulates pending field updates so title+content are batched into one API call.
   const pendingUpdatesRef = useRef({});
 
@@ -94,7 +111,7 @@ const NoteEditor = React.memo(({ note, onClose }) => {
       ImageExt.configure({ inline: false }),
       Placeholder.configure({ placeholder: "Start writing your note..." }),
     ],
-    content: note?.content || "",
+    content: getRenderableContent(note?.content, note?.attachments),
     onUpdate: ({ editor: ed }) => {
       if (remoteUpdateRef.current) return;
 
@@ -145,12 +162,13 @@ const NoteEditor = React.memo(({ note, onClose }) => {
     setTitle(note?.title || "");
     setSaveStatus("saved");
     // Reset saved-content tracking for the newly opened note
-    lastSavedContentRef.current = note?.content || "";
+    const renderableContent = getRenderableContent(note?.content, note?.attachments);
+    lastSavedContentRef.current = renderableContent;
     pendingUpdatesRef.current = {};
     if (saveTimerRef.current) { clearTimeout(saveTimerRef.current); saveTimerRef.current = null; }
     if (editor && !editor.isDestroyed) {
       editor.setEditable(canEdit);
-      const incoming = note?.content || "";
+      const incoming = renderableContent;
       const current = editor.getHTML();
       if (current !== incoming) {
         remoteUpdateRef.current = true;
@@ -158,7 +176,7 @@ const NoteEditor = React.memo(({ note, onClose }) => {
         remoteUpdateRef.current = false;
       }
     }
-  }, [note?.id, note?.content, canEdit, editor]);
+  }, [note?.id, note?.title, note?.content, note?.attachments, canEdit, editor]);
 
   // Auto-save title — batched into the same API call as content when possible.
   useEffect(() => {
@@ -387,7 +405,7 @@ const NoteEditor = React.memo(({ note, onClose }) => {
     <div className="flex-1 bg-dark-500 flex flex-col h-full overflow-hidden">
       {/* Collaboration banner – shows when other users are present */}
       {note?.isShared && presenceUsers.length > 1 && (
-        <div className="flex-shrink-0 px-6 py-2 flex items-center justify-between" style={{
+        <div className="flex-shrink-0 px-4 sm:px-6 py-2 flex items-center justify-between" style={{
           background: "rgba(59, 130, 246, 0.06)",
           borderBottom: "1px solid rgba(59, 130, 246, 0.12)",
         }}>
@@ -618,7 +636,7 @@ const NoteEditor = React.memo(({ note, onClose }) => {
 
       {/* Toolbar */}
       {canEdit && (
-        <div className="flex-shrink-0 px-6 py-2 border-b border-dark-300 flex items-center gap-1">
+        <div className="flex-shrink-0 px-4 sm:px-6 py-2 border-b border-dark-300 flex items-center gap-1 overflow-x-auto">
           <button
             onClick={() => editor?.chain().focus().toggleBold().run()}
             className={toolbarBtn(editor?.isActive("bold"))}
@@ -677,15 +695,16 @@ const NoteEditor = React.memo(({ note, onClose }) => {
                   key={att.id ?? att.url ?? att.name ?? `attachment-${index}`}
                   className="group relative rounded-lg overflow-hidden border border-dark-300 bg-dark-200"
                 >
-                  {att.url && att.mime?.startsWith("image/") ? (
+                  {att.exists !== false && att.url && att.mime?.startsWith("image/") ? (
                     <img
                       src={att.url}
                       alt={att.name}
                       className="w-full h-32 object-cover"
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-32 text-dark-50">
+                    <div className="flex flex-col items-center justify-center h-32 gap-1 text-dark-50">
                       <AlertCircle size={20} />
+                      <span className="text-[11px]">File unavailable</span>
                     </div>
                   )}
                   <div className="px-2 py-1 text-[11px] text-dark-50 truncate">

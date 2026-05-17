@@ -26,7 +26,7 @@ const Profile = () => {
   useEffect(() => {
     setDisplayName(user?.displayName || "");
     setEmail(user?.email || "");
-  }, [user?.id]);
+  }, [user?.id, user?.displayName, user?.email]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

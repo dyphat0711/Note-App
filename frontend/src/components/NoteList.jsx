@@ -331,7 +331,7 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
           {[
             { mode: "grid", icon: Grid3X3, label: "Grid" },
             { mode: "list", icon: List,    label: "List" },
-          ].map(({ mode, icon: Icon, label }) => (
+          ].map(({ mode, icon, label }) => (
             <button
               key={mode}
               onClick={() => setViewMode(mode)}
@@ -344,7 +344,7 @@ const NoteList = React.memo(({ onOpenNote, onDeleteNote }) => {
               aria-label={`${label} view`}
               aria-pressed={viewMode === mode}
             >
-              <Icon size={13} />
+              {React.createElement(icon, { size: 13 })}
               {label}
             </button>
           ))}

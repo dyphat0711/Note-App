@@ -58,7 +58,7 @@ const Dashboard = () => {
   // On mobile (< lg breakpoint = 1024px) default to closed so returning from
   // Profile / Preferences / ChangePassword doesn't trigger the sidebar overlay.
   const [sidebarOpen, setSidebarOpen] = useState(
-    () => typeof window !== "undefined" && window.innerWidth >= 1024,
+    () => typeof window !== "undefined" && window.innerWidth >= 1280,
   );
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -100,7 +100,7 @@ const Dashboard = () => {
     const target =
       (savedId && (notes.find((n) => String(n.id) === savedId) ||
                    sharedNotes.find((n) => String(n.id) === savedId))) ||
-      (window.innerWidth >= 640 ? notes[0] : null); // desktop fallback
+      (window.innerWidth >= 1024 ? notes[0] : null); // two-pane fallback
 
     if (target) useNoteStore.getState().setActiveNote(target.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,7 +196,7 @@ const Dashboard = () => {
         {/* ── Mobile overlay ── */}
         {sidebarOpen && (
           <div
-            className="fixed inset-0 bg-black/60 z-30 lg:hidden backdrop-blur-sm animate-fade-in-up"
+            className="fixed inset-0 bg-black/60 z-30 xl:hidden backdrop-blur-sm animate-fade-in-up"
             style={{ animation: "fadeInUp 150ms ease both" }}
             onClick={() => setSidebarOpen(false)}
           />
@@ -204,10 +204,10 @@ const Dashboard = () => {
 
         {/* ── Sidebar ── */}
         <div
-          className={`fixed lg:relative inset-y-0 left-0 z-40 lg:z-auto sidebar-container ${
+          className={`fixed xl:relative inset-y-0 left-0 z-40 xl:z-auto sidebar-container ${
             sidebarOpen
-              ? "translate-x-0 lg:flex-shrink-0"
-              : "-translate-x-full lg:translate-x-0 lg:w-0 lg:overflow-hidden"
+              ? "translate-x-0 xl:flex-shrink-0"
+              : "-translate-x-full xl:translate-x-0 xl:w-0 xl:overflow-hidden"
           }`}
           style={{
             // On desktop: when closed, collapse to 0 width
@@ -232,7 +232,7 @@ const Dashboard = () => {
               {/* Mobile hamburger */}
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="lg:hidden p-2 rounded-lg text-dark-50 hover:text-surface-200 hover:bg-dark-200 transition-all duration-150 flex-shrink-0"
+                className="xl:hidden p-2 rounded-lg text-dark-50 hover:text-surface-200 hover:bg-dark-200 transition-all duration-150 flex-shrink-0"
                 aria-label="Toggle sidebar"
               >
                 <Menu size={17} />
@@ -241,14 +241,14 @@ const Dashboard = () => {
               {/* Desktop collapse button */}
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="hidden lg:flex p-2 rounded-lg text-dark-50 hover:text-surface-200 hover:bg-dark-200 transition-all duration-150 flex-shrink-0"
+                className="hidden xl:flex p-2 rounded-lg text-dark-50 hover:text-surface-200 hover:bg-dark-200 transition-all duration-150 flex-shrink-0"
                 aria-label={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
               >
                 {sidebarOpen ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}
               </button>
 
               {/* Breadcrumb */}
-              <nav className="hidden sm:flex items-center gap-1 text-sm text-dark-50 min-w-0">
+              <nav className="hidden lg:flex items-center gap-1 text-sm text-dark-50 min-w-0">
                 <span className="font-medium">Notes</span>
                 {activeNote && (
                   <>
@@ -264,7 +264,7 @@ const Dashboard = () => {
               {mobilePanel === "editor" && activeNote && (
                 <button
                   onClick={() => setMobilePanel("list")}
-                  className="sm:hidden flex items-center gap-1 text-sm text-dark-50 hover:text-surface-200 transition-colors"
+                  className="lg:hidden flex items-center gap-1 text-sm text-dark-50 hover:text-surface-200 transition-colors"
                 >
                   <ChevronLeft size={16} />
                   Back
@@ -359,15 +359,15 @@ const Dashboard = () => {
           {/* ── List + Editor panel ── */}
           {/* On mobile: panels are stacked absolutely and slide via translateX.
               On desktop (sm+): normal side-by-side flex layout. */}
-          <div className="flex-1 overflow-hidden relative sm:flex">
+          <div className="flex-1 overflow-hidden relative lg:flex">
 
             {/* NoteList – slides left when editor opens on mobile */}
             <div
               className={`
                 absolute inset-0 z-10
-                sm:relative sm:inset-auto sm:z-auto sm:flex-shrink-0 sm:h-full
+                lg:relative lg:inset-auto lg:z-auto lg:flex-shrink-0 lg:h-full
                 transition-transform duration-300 ease-in-out
-                ${mobilePanel === "editor" ? "-translate-x-full sm:translate-x-0" : "translate-x-0"}
+                ${mobilePanel === "editor" ? "-translate-x-full lg:translate-x-0" : "translate-x-0"}
               `}
             >
               <ErrorBoundary>
@@ -382,9 +382,9 @@ const Dashboard = () => {
             <div
               className={`
                 absolute inset-0 z-10 flex flex-col
-                sm:relative sm:inset-auto sm:z-auto sm:flex-1 sm:min-w-0 sm:h-full
+                lg:relative lg:inset-auto lg:z-auto lg:flex-1 lg:min-w-0 lg:h-full
                 transition-transform duration-300 ease-in-out
-                ${mobilePanel === "list" ? "translate-x-full sm:translate-x-0" : "translate-x-0"}
+                ${mobilePanel === "list" ? "translate-x-full lg:translate-x-0" : "translate-x-0"}
               `}
             >
               {isLoading ? (
@@ -441,9 +441,8 @@ const Dashboard = () => {
       {mobilePanel === "list" && (
         <button
           onClick={handleNewNote}
-          className="fixed sm:hidden z-50 flex items-center justify-center animate-fab-pop active:scale-90 transition-transform"
+          className="responsive-fab fixed lg:hidden z-50 flex items-center justify-center animate-fab-pop active:scale-90 transition-transform"
           style={{
-            bottom: "calc(var(--bottom-nav-height, 60px) + 16px)",
             right: "16px",
             width: "52px",
             height: "52px",
@@ -460,7 +459,7 @@ const Dashboard = () => {
 
       {/* ── Mobile bottom navigation ── */}
       <div className="mobile-bottom-nav sm:hidden">
-        {mobileNavItems.map(({ id, label, icon: Icon }) => {
+        {mobileNavItems.map(({ id, label, icon }) => {
           const isActive = activeSection === id;
           return (
             <button
@@ -474,7 +473,7 @@ const Dashboard = () => {
               className={`mobile-nav-btn ${isActive ? "active" : ""}`}
               aria-current={isActive ? "page" : undefined}
             >
-              <Icon size={20} />
+              {React.createElement(icon, { size: 20 })}
               <span>{label}</span>
             </button>
           );

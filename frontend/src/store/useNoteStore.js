@@ -54,6 +54,7 @@ function transformAttachment(a) {
     downloadUrl: a.download_url,
     mime: a.mime_type,
     size: a.size,
+    exists: a.exists ?? Boolean(a.url),
   };
 }
 
