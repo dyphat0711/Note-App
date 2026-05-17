@@ -30,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
 
         // Customize email verification URL to point to the frontend SPA
         VerifyEmail::createUrlUsing(function ($notifiable) {
-            $frontendUrl = env('APP_FRONTEND_URL', 'http://localhost:5173') . '/email-verified';
+            $frontendUrl = env('APP_FRONTEND_URL', 'http://localhost:5173').'/email-verified';
 
             $verifyUrl = URL::temporarySignedRoute(
                 'verification.verify',
@@ -42,7 +42,8 @@ class AppServiceProvider extends ServiceProvider
             );
 
             $query = parse_url($verifyUrl, PHP_URL_QUERY);
-            return $frontendUrl . '?id=' . $notifiable->getKey() . '&hash=' . sha1($notifiable->getEmailForVerification()) . '&' . $query;
+
+            return $frontendUrl.'?id='.$notifiable->getKey().'&hash='.sha1($notifiable->getEmailForVerification()).'&'.$query;
         });
     }
 }

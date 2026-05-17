@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Events;
 
 use App\Models\Note;
+use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
@@ -20,8 +21,7 @@ class NoteUpdated implements ShouldBroadcastNow
     public function __construct(
         public Note $note,
         public int $updatedBy,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<int, PrivateChannel>
@@ -29,7 +29,7 @@ class NoteUpdated implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('note.' . $this->note->id),
+            new PrivateChannel('note.'.$this->note->id),
         ];
     }
 
@@ -43,7 +43,7 @@ class NoteUpdated implements ShouldBroadcastNow
      */
     public function broadcastWith(): array
     {
-        $updater = \App\Models\User::find($this->updatedBy);
+        $updater = User::find($this->updatedBy);
         $hasPassword = $this->note->password !== null;
 
         return [

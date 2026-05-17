@@ -62,7 +62,7 @@ class ProfileController extends Controller
         }
 
         $extension = $file->getClientOriginalExtension();
-        $filename = Str::uuid() . '.' . $extension;
+        $filename = Str::uuid().'.'.$extension;
         $path = $file->storeAs("avatars/{$user->id}", $filename, 'public');
 
         $user->update(['avatar_path' => $path]);

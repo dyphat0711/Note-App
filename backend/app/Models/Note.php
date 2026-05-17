@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Database\Factories\NoteFactory;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
@@ -18,13 +21,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $content
  * @property string|null $password
  * @property bool $is_pinned
- * @property \Illuminate\Support\Carbon|null $pinned_at
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon|null $pinned_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  * @property-read User $user
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Label> $labels
- * @property-read \Illuminate\Database\Eloquent\Collection<int, SharedNote> $shares
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Attachment> $attachments
+ * @property-read Collection<int, Label> $labels
+ * @property-read Collection<int, SharedNote> $shares
+ * @property-read Collection<int, Attachment> $attachments
  */
 class Note extends Model
 {
@@ -88,8 +91,8 @@ class Note extends Model
     /**
      * Scope a query to only include notes owned by the given user.
      *
-     * @param \Illuminate\Database\Eloquent\Builder<self> $query
-     * @return \Illuminate\Database\Eloquent\Builder<self>
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopeOwnedBy($query, int $userId): mixed
     {
@@ -102,8 +105,8 @@ class Note extends Model
      * Uses FULLTEXT MATCH AGAINST on MySQL/MariaDB for indexed performance.
      * Falls back to LIKE for other drivers (e.g. SQLite in tests).
      *
-     * @param \Illuminate\Database\Eloquent\Builder<self> $query
-     * @return \Illuminate\Database\Eloquent\Builder<self>
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopeSearch($query, string $keyword): mixed
     {
@@ -116,7 +119,7 @@ class Note extends Model
 
             return $query->whereRaw(
                 'MATCH(title, content) AGAINST(? IN BOOLEAN MODE)',
-                [$escaped . '*'],
+                [$escaped.'*'],
             );
         }
 
@@ -130,8 +133,8 @@ class Note extends Model
     /**
      * Scope a query to order by pinned first, then by updated_at descending.
      *
-     * @param \Illuminate\Database\Eloquent\Builder<self> $query
-     * @return \Illuminate\Database\Eloquent\Builder<self>
+     * @param  Builder<self>  $query
+     * @return Builder<self>
      */
     public function scopeOrdered($query): mixed
     {

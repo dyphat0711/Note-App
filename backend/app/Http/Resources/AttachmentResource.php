@@ -26,7 +26,7 @@ class AttachmentResource extends JsonResource
             'mime_type' => $this->mime_type,
             'size' => $this->size,
             'size_formatted' => $this->formatBytes($this->size),
-            'url' => $exists ? '/storage/' . $this->stored_path : null,
+            'url' => $exists ? '/storage/'.$this->stored_path : null,
             'download_url' => $exists ? route('attachments.download', $this->id) : null,
             'exists' => $exists,
             'is_image' => str_starts_with($this->mime_type, 'image/'),
@@ -46,6 +46,6 @@ class AttachmentResource extends JsonResource
             $i++;
         }
 
-        return round($bytes, 2) . ' ' . $units[$i];
+        return round($bytes, 2).' '.$units[$i];
     }
 }

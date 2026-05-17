@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Events\NoteUserTyping;
 use App\Http\Requests\Sharing\ShareNoteRequest;
 use App\Http\Requests\Sharing\UpdateSharePermissionRequest;
 use App\Http\Resources\NoteResource;
@@ -18,8 +19,7 @@ class NoteSharingController extends Controller
 {
     public function __construct(
         protected SharingService $sharingService,
-    ) {
-    }
+    ) {}
 
     /**
      * Share a note with a registered user by email (with read or edit permission).
@@ -95,9 +95,7 @@ class NoteSharingController extends Controller
     {
         $this->authorize('view', $note);
 
-        if (class_exists(\App\Events\NoteUserTyping::class)) {
-            event(new \App\Events\NoteUserTyping($note, (int) $request->user()->id));
-        }
+        event(new NoteUserTyping($note, (int) $request->user()->id));
 
         return response()->json(['ok' => true]);
     }

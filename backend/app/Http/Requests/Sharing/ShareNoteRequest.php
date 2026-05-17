@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Sharing;
 
 use App\Models\Note;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -20,7 +21,7 @@ class ShareNoteRequest extends FormRequest
      * Per spec section 2.5 "better" approach: validate that the email belongs to a
      * registered user.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {

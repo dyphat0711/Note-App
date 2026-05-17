@@ -22,6 +22,7 @@ use Illuminate\Support\Str;
 class PasswordResetController extends Controller
 {
     private const OTP_TTL_MINUTES = 10;
+
     private const OTP_MAX_ATTEMPTS = 5;
 
     /**

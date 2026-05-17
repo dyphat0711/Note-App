@@ -18,8 +18,7 @@ class NoteSharedNotification extends Notification
         public Note $note,
         public User $owner,
         public string $permission,
-    ) {
-    }
+    ) {}
 
     /**
      * Channels: in-app database notification + email notification.
@@ -35,7 +34,7 @@ class NoteSharedNotification extends Notification
     {
         $permissionLabel = $this->permission === 'edit' ? 'edit' : 'read-only';
 
-        return (new MailMessage())
+        return (new MailMessage)
             ->subject("{$this->owner->display_name} shared a note with you")
             ->greeting("Hello {$notifiable->display_name},")
             ->line("**{$this->owner->display_name}** ({$this->owner->email}) shared the note ")

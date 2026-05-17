@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Requests\Note;
 
 use App\Models\Note;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
@@ -23,7 +24,7 @@ class SetNotePasswordRequest extends FormRequest
      *  - change: requires current_password verification, plus new password + confirmation.
      *  - disable: requires current_password verification.
      *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {
@@ -58,12 +59,14 @@ class SetNotePasswordRequest extends FormRequest
             // Reject "set" if the note already has a password (must use "change").
             if ($action === 'set' && $note->password !== null) {
                 $validator->errors()->add('action', 'Note already has a password. Use action=change instead.');
+
                 return;
             }
 
             // Reject "change"/"disable" if note has no password (must use "set").
             if (in_array($action, ['change', 'disable'], true) && $note->password === null) {
                 $validator->errors()->add('action', 'Note has no password yet. Use action=set instead.');
+
                 return;
             }
 

@@ -8,12 +8,16 @@ use App\Http\Requests\UploadAttachmentRequest;
 use App\Http\Resources\AttachmentResource;
 use App\Models\Attachment;
 use App\Models\Note;
+use App\Services\AttachmentService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttachmentController extends Controller
 {
+    public function __construct(
+        private readonly AttachmentService $attachments,
+    ) {}
+
     /**
      * Upload attachments to a note.
      */
@@ -21,28 +25,7 @@ class AttachmentController extends Controller
     {
         $this->authorize('update', $note);
 
-        $attachments = [];
-
-        foreach ($request->file('files') as $file) {
-            $extension = $file->getClientOriginalExtension();
-            $filename = Str::uuid() . '.' . $extension;
-
-            $path = $file->storeAs(
-                "attachments/{$note->id}",
-                $filename,
-                'public'
-            );
-
-            $attachment = Attachment::create([
-                'note_id' => $note->id,
-                'original_name' => $file->getClientOriginalName(),
-                'stored_path' => $path,
-                'mime_type' => $file->getMimeType(),
-                'size' => $file->getSize(),
-            ]);
-
-            $attachments[] = $attachment;
-        }
+        $attachments = $this->attachments->upload($note, $request->file('files'));
 
         return response()->json([
             'message' => 'Attachments uploaded successfully',
@@ -75,8 +58,7 @@ class AttachmentController extends Controller
             abort(403, 'Attachment does not belong to this note.');
         }
 
-        Storage::disk('public')->delete($attachment->stored_path);
-        $attachment->delete();
+        $this->attachments->delete($attachment);
 
         return response()->json([
             'message' => 'Attachment deleted successfully',
@@ -86,17 +68,11 @@ class AttachmentController extends Controller
     /**
      * Serve an attachment for download.
      */
-    public function download(Attachment $attachment)
+    public function download(Attachment $attachment): StreamedResponse
     {
         $note = $attachment->note;
         $this->authorize('view', $note);
 
-        if (!Storage::disk('public')->exists($attachment->stored_path)) {
-            abort(404, 'File not found.');
-        }
-
-        return Storage::disk('public')->response(
-            $attachment->stored_path
-        );
+        return $this->attachments->response($attachment);
     }
 }

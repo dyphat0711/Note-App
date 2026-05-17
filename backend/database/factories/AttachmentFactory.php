@@ -22,8 +22,8 @@ class AttachmentFactory extends Factory
     {
         return [
             'note_id' => Note::factory(),
-            'original_name' => $this->faker->word() . '.png',
-            'stored_path' => 'attachments/test/' . $this->faker->uuid() . '.png',
+            'original_name' => $this->faker->word().'.png',
+            'stored_path' => 'attachments/test/'.$this->faker->uuid().'.png',
             'mime_type' => 'image/png',
             'size' => $this->faker->numberBetween(1024, 1024 * 100),
         ];

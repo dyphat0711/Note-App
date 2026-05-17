@@ -38,7 +38,7 @@ class AuthController extends Controller
             return $user;
         });
 
-        $token = $user->createToken(config('app.name') . '_auth_token')->plainTextToken;
+        $token = $user->createToken(config('app.name').'_auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'User registered successfully',
@@ -63,7 +63,7 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken(config('app.name') . '_auth_token')->plainTextToken;
+        $token = $user->createToken(config('app.name').'_auth_token')->plainTextToken;
 
         return response()->json([
             'message' => 'Login successful',

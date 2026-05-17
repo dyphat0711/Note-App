@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Events\NoteUpdated;
 use App\Http\Requests\Note\SetNotePasswordRequest;
 use App\Http\Requests\Note\StoreNoteRequest;
 use App\Http\Requests\Note\UpdateNoteRequest;
@@ -19,8 +20,7 @@ class NoteController extends Controller
 {
     public function __construct(
         protected NoteService $noteService,
-    ) {
-    }
+    ) {}
 
     /**
      * Display a listing of the user's notes, optionally filtered by labels.
@@ -77,8 +77,8 @@ class NoteController extends Controller
 
         // Broadcast change to collaborators when the note is shared.
         // Use the already-loaded `shares` collection (no extra DB query).
-        if (class_exists(\App\Events\NoteUpdated::class) && $note->shares->isNotEmpty()) {
-            event(new \App\Events\NoteUpdated($note, (int) $request->user()->id));
+        if ($note->shares->isNotEmpty()) {
+            event(new NoteUpdated($note, (int) $request->user()->id));
         }
 
         return response()->json([
@@ -125,8 +125,8 @@ class NoteController extends Controller
         // Broadcast to shared users so their clients update the lock state immediately.
         // This prevents a race where a shared user still has the content cached while
         // the owner has since locked the note.
-        if (class_exists(\App\Events\NoteUpdated::class) && $note->shares()->exists()) {
-            event(new \App\Events\NoteUpdated($note, (int) $request->user()->id));
+        if ($note->shares()->exists()) {
+            event(new NoteUpdated($note, (int) $request->user()->id));
         }
 
         return response()->json([

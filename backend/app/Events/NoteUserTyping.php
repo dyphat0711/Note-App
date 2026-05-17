@@ -20,8 +20,7 @@ class NoteUserTyping implements ShouldBroadcastNow
     public function __construct(
         public Note $note,
         public int $userId,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<int, PrivateChannel>
@@ -29,7 +28,7 @@ class NoteUserTyping implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('note.' . $this->note->id),
+            new PrivateChannel('note.'.$this->note->id),
         ];
     }
 

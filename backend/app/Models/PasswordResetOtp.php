@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Carbon;
 
 /**
  * @property int $id
  * @property string $email
  * @property string $otp_hash
  * @property int $attempts
- * @property \Illuminate\Support\Carbon $expires_at
- * @property \Illuminate\Support\Carbon|null $used_at
- * @property \Illuminate\Support\Carbon $created_at
- * @property \Illuminate\Support\Carbon $updated_at
+ * @property Carbon $expires_at
+ * @property Carbon|null $used_at
+ * @property Carbon $created_at
+ * @property Carbon $updated_at
  */
 class PasswordResetOtp extends Model
 {
